@@ -1,0 +1,9 @@
+.idea/
+.python_venv/
+.vscode/
+__pycache__/
+build/
+dist/
+node_modules/
+venv/
+.env
