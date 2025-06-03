@@ -6,7 +6,7 @@ authors = ["Tu Nombre <tu@email.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "~3.10.0"
+python = "^3.10.0"
 Flask = "^2.3.3"
 pymongo = "^4.5.0"
 gunicorn = "^21.2.0"
