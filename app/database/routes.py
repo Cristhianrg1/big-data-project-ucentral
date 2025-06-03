@@ -327,6 +327,7 @@ def crear_coleccion(database):
                 
                 # Preparar respuesta
                 response_data = {
+                    'success': True,
                     'message': success_msg,
                     'redirect': url_for('database.gestion_proyecto', database=database, _external=True)
                 }

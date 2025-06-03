@@ -9,22 +9,22 @@
             <span class="badge bg-primary ms-2">{{ total }} documentos</span>
         </h4>
         <div>
-            <button onclick="window.history.back()" class="btn btn-sm btn-outline-secondary">
+            <a href="{{ url_for('database.gestion_proyecto', database=database) }}" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i> Volver
-            </button>
+            </a>
             <div class="btn-group">
-                <a href="{{ url_for('database.importar_documentos', database=database, collection=collection) }}" 
+                <a href="{{ url_for('database.importar_documentos', database=database, collection=collection) }}"
                    class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-upload me-1"></i> Importar
                 </a>
-                <a href="{{ url_for('database.nuevo_documento', database=database, collection=collection) }}" 
+                <a href="{{ url_for('database.nuevo_documento', database=database, collection=collection) }}"
                    class="btn btn-sm btn-primary">
                     <i class="bi bi-plus-lg me-1"></i> Nuevo
                 </a>
             </div>
         </div>
     </div>
-    
+
     <div class="card-body">
         <!-- Filtros y búsqueda -->
         <div class="row mb-4">
@@ -83,24 +83,24 @@
                         </td>
                         <td class="text-nowrap text-end">
                             <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('database.editar_documento', database=database, collection=collection, document_id=doc._id) }}" 
-                                   class="btn btn-outline-primary" 
+                                <a href="{{ url_for('database.editar_documento', database=database, collection=collection, document_id=doc._id) }}"
+                                   class="btn btn-outline-primary"
                                    title="Editar documento">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <button class="btn btn-outline-secondary view-document" 
-                                        data-bs-toggle="modal" 
+                                <button class="btn btn-outline-secondary view-document"
+                                        data-bs-toggle="modal"
                                         data-bs-target="#documentModal"
                                         data-doc='{{ doc|tojson }}'
                                         title="Vista previa">
                                     <i class="bi bi-eye"></i>
                                 </button>
+                                <!-- MODIFICADO: Sin data-bs-toggle ni data-bs-target -->
                                 <button class="btn btn-outline-danger delete-document"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#deleteConfirmModal"
                                         data-doc-id="{{ doc._id }}"
                                         data-db="{{ database }}"
                                         data-collection="{{ collection }}"
+                                        data-doc='{{ doc|tojson }}'
                                         title="Eliminar documento">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -133,7 +133,7 @@
                         Anterior
                     </a>
                 </li>
-                
+
                 {% for p in range(1, pages + 1) %}
                     {% if p == 1 or p == pages or (p >= page - 2 and p <= page + 2) %}
                         <li class="page-item {% if p == page %}active{% endif %}">
@@ -145,32 +145,11 @@
                         </li>
                     {% endif %}
                 {% endfor %}
-                
+
                 <li class="page-item {% if page == pages %}disabled{% endif %}">
                     <a class="page-link" href="?page={{ page + 1 }}" {% if page == pages %}tabindex="-1" aria-disabled="true"{% endif %}>
                         Siguiente
                     </a>
-                </li>
-            </ul>
-        </nav>
-        {% endif %}
-
-        <!-- Paginación -->
-        {% if pages > 1 %}
-        <nav aria-label="Page navigation" class="mt-4">
-            <ul class="pagination justify-content-center">
-                <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                    <a class="page-link" href="?page={{ page - 1 }}" {% if page == 1 %}tabindex="-1" aria-disabled="true"{% endif %}>Anterior</a>
-                </li>
-                
-                {% for p in range(1, pages + 1) %}
-                <li class="page-item {% if p == page %}active{% endif %}">
-                    <a class="page-link" href="?page={{ p }}">{{ p }}</a>
-                </li>
-                {% endfor %}
-                
-                <li class="page-item {% if page >= pages %}disabled{% endif %}">
-                    <a class="page-link" href="?page={{ page + 1 }}" {% if page >= pages %}tabindex="-1" aria-disabled="true"{% endif %}>Siguiente</a>
                 </li>
             </ul>
         </nav>
@@ -246,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const docId = this.getAttribute('data-doc-id');
             const preview = this.closest('tr').querySelector('.document-preview');
-            
+
             if (this.classList.contains('expanded')) {
                 preview.style.maxHeight = '80px';
                 this.innerHTML = '<i class="bi bi-arrows-expand"></i> Mostrar todo';
@@ -266,10 +245,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const button = event.relatedTarget;
             const docData = JSON.parse(button.getAttribute('data-doc'));
             const modalContent = document.getElementById('documentContent');
-            
+
             // Format and display the JSON with syntax highlighting
             modalContent.textContent = JSON.stringify(docData, null, 2);
-            
+
             // Update the copy button
             document.getElementById('copyJson').onclick = function() {
                 navigator.clipboard.writeText(JSON.stringify(docData, null, 2))
@@ -287,7 +266,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle delete confirmation
     const deleteModal = document.getElementById('deleteConfirmModal');
     let docToDelete = null;
-    
+
     if (deleteModal) {
         deleteModal.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
@@ -297,9 +276,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 collection: button.getAttribute('data-collection'),
                 data: button.getAttribute('data-doc')
             };
-            
+
             document.getElementById('documentIdToDelete').textContent = docToDelete.id;
-            
+
             // Mostrar vista previa del documento
             try {
                 const docData = JSON.parse(docToDelete.data || '{}');
@@ -309,15 +288,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error al parsear documento:', e);
             }
         });
-        
+
         document.getElementById('confirmDelete').addEventListener('click', function() {
             if (!docToDelete) return;
-            
+
             const btn = this;
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Eliminando...';
-            
+
             // Enviar solicitud de eliminación
             fetch(`{{ url_for('database.eliminar_documento', database='__DB__', collection='__COLLECTION__', document_id='__DOC_ID__') }}`
                 .replace('__DB__', docToDelete.db)
@@ -335,16 +314,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Eliminar la fila de la tabla
                     const row = document.querySelector(`tr[data-doc-id="${docToDelete.id}"]`);
                     if (row) row.remove();
-                    
+
                     // Mostrar mensaje de éxito
                     showToast('¡Documento eliminado correctamente!', 'success');
-                    
+
                     // Recargar la página si no quedan documentos
                     const remainingDocs = document.querySelectorAll('#documentsTableBody tr').length;
                     if (remainingDocs <= 1) { // 1 por la fila de "no hay documentos"
                         setTimeout(() => window.location.reload(), 1500);
                     }
-                    
+
                     // Show success message
                     showToast('¡Documento eliminado correctamente!', 'success');
                 } else {
@@ -359,13 +338,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Close the modal
                 const modal = bootstrap.Modal.getInstance(deleteModal);
                 if (modal) modal.hide();
-                
+
                 // Reset button
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             });
         });
-        
+
         // Initialize delete buttons
         document.querySelectorAll('.delete-document').forEach(button => {
             button.addEventListener('click', function(e) {
@@ -375,11 +354,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-    
+
     // Initialize search functionality
     const searchInput = document.getElementById('searchInput');
     const searchButton = document.getElementById('searchButton');
-    
+
     if (searchInput && searchButton) {
         const performSearch = () => {
             const searchTerm = searchInput.value.trim();
@@ -389,18 +368,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = url.toString();
             }
         };
-        
+
         searchButton.addEventListener('click', performSearch);
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') performSearch();
         });
     }
-    
+
     // Helper function to show toast messages
     function showToast(message, type = 'info') {
         const toastContainer = document.getElementById('toastContainer');
         if (!toastContainer) return;
-        
+
         const toastId = 'toast-' + Date.now();
         const toast = document.createElement('div');
         toast.className = `toast align-items-center text-white bg-${type} border-0`;
@@ -408,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toast.setAttribute('aria-live', 'assertive');
         toast.setAttribute('aria-atomic', 'true');
         toast.id = toastId;
-        
+
         toast.innerHTML = `
             <div class="d-flex">
                 <div class="toast-body">
@@ -417,58 +396,58 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
         `;
-        
+
         toastContainer.appendChild(toast);
-        
+
         const bsToast = new bootstrap.Toast(toast, {
             autohide: true,
             delay: 5000
         });
-        
+
         bsToast.show();
-        
+
         // Remove the toast from DOM after it's hidden
         toast.addEventListener('hidden.bs.toast', function() {
             toast.remove();
         });
     }
-    
+
     // Initialize sort and per page selectors
     const sortSelect = document.getElementById('sortSelect');
     const perPageSelect = document.getElementById('perPageSelect');
-    
+
     if (sortSelect) {
         sortSelect.addEventListener('change', updateUrlWithParams);
     }
-    
+
     if (perPageSelect) {
         perPageSelect.addEventListener('change', updateUrlWithParams);
     }
-    
+
     function updateUrlWithParams() {
         const params = new URLSearchParams(window.location.search);
-        
+
         if (sortSelect && sortSelect.value) {
             params.set('sort', sortSelect.value);
         }
-        
+
         if (perPageSelect && perPageSelect.value) {
             params.set('per_page', perPageSelect.value);
             params.set('page', '1'); // Reset to first page when changing items per page
         }
-        
+
         window.location.search = params.toString();
     }
-    
+
     // Set current sort and per page values from URL
     const urlParams = new URLSearchParams(window.location.search);
     const currentSort = urlParams.get('sort');
     const currentPerPage = urlParams.get('per_page');
-    
+
     if (currentSort && sortSelect) {
         sortSelect.value = currentSort;
     }
-    
+
     if (currentPerPage && perPageSelect) {
         perPageSelect.value = currentPerPage;
     }

@@ -28,15 +28,11 @@ def create_app():
     # Registrar blueprints
     from .auth import auth_bp
     from .database import db_bp
+    from .main import main_bp
     
+    app.register_blueprint(main_bp, url_prefix='')
     app.register_blueprint(auth_bp, url_prefix='')
     app.register_blueprint(db_bp, url_prefix='')
-    
-    # Ruta raíz - Página de inicio
-    @app.route('/')
-    def index():
-        # Mostrar la página de inicio sin requerir autenticación
-        return render_template('index.html')
         
     # Ruta de dashboard - Requiere autenticación
     @app.route('/dashboard')

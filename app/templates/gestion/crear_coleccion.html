@@ -31,9 +31,9 @@
                         <h3 class="card-title">Crear Nueva Colección</h3>
                     </div>
                     <div class="card-body">
-                        <form id="crearColeccionForm" method="POST" action="{{ url_for('crear_coleccion') }}" enctype="multipart/form-data">
+                        <form id="crearColeccionForm" method="POST" action="{{ url_for('database.crear_coleccion', database=database) }}" enctype="multipart/form-data">
                             <input type="hidden" name="database" value="{{ database }}">
-                            
+
                             <div class="mb-3">
                                 <label for="database" class="form-label">Base de Datos:</label>
                                 <input type="text" class="form-control" id="database" name="database_display" value="{{ database }}" readonly>
@@ -100,36 +100,67 @@
     </div>
 
     <script>
+        // Variable para rastrear el estado del modal
+        let currentModal = null;
+
         function confirmarCreacion() {
+            closeCurrentModal(); // Cerrar cualquier modal abierto
+
             const collectionName = document.getElementById('collection_name').value;
             if (!collectionName) {
                 showResult('Por favor ingrese un nombre para la colección', 'error');
                 return;
             }
-            
+
             const zipFile = document.getElementById('zip_file').files[0];
             if (!zipFile) {
                 showResult('Por favor seleccione un archivo ZIP', 'error');
                 return;
             }
 
-            const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-            modal.show();
+            const modalElement = document.getElementById('confirmModal');
+            if (modalElement) {
+                currentModal = new bootstrap.Modal(modalElement);
+                currentModal.show();
+            }
+        }
+
+        function closeCurrentModal() {
+            if (currentModal) {
+                try {
+                    currentModal.hide();
+                    const modalElement = document.querySelector('.modal.show');
+                    if (modalElement) {
+                        document.body.classList.remove('modal-open');
+                        modalElement.style.display = 'none';
+                        const modalBackdrop = document.querySelector('.modal-backdrop');
+                        if (modalBackdrop && modalBackdrop.parentNode) {
+                            modalBackdrop.parentNode.removeChild(modalBackdrop);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error al cerrar el modal:', e);
+                }
+                currentModal = null;
+            }
         }
 
         function submitForm() {
+            console.log('Iniciando submitForm()');
             const form = document.getElementById('crearColeccionForm');
+            if (!form) {
+                console.error('No se encontró el formulario');
+                return;
+            }
+
             const formData = new FormData(form);
-            const submitBtn = form.querySelector('button[type="button"]');
-            
-            // Mostrar indicador de carga
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
-            
+
             // Cerrar el modal de confirmación
-            const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
-            if (confirmModal) confirmModal.hide();
-            
+            closeCurrentModal();
+
+            // Mostrar mensaje de procesamiento
+            showResult('Procesando la creación de la colección...', 'info');
+
             // Enviar el formulario
             fetch(form.action, {
                 method: 'POST',
@@ -137,50 +168,73 @@
             })
             .then(response => response.json())
             .then(data => {
-                if (data.redirect) {
-                    // Mostrar mensaje de éxito antes de redirigir
-                    showResult(data.message || 'Colección creada exitosamente', 'success');
-                    // Redirigir después de 3 segundos
+                if (data && data.success) {
+                    // Usar el modal para mostrar el mensaje de éxito
+                    showResult('¡Colección creada exitosamente! Redirigiendo...', 'success');
+                    // Redirigir después de un breve retraso
                     setTimeout(() => {
-                        window.location.href = data.redirect;
-                    }, 3000);
-                } else if (data.error) {
-                    throw new Error(data.error);
+                        window.location.href = '{{ url_for("database.gestion_proyecto", database=database) }}';
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Error al crear la colección');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showResult(error.message || 'Error al procesar la solicitud', 'error');
-            })
-            .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Cargar';
+                showResult('Error: ' + error.message, 'error');
             });
         }
-        
+
         function showResult(message, type = 'info') {
-            const resultModal = new bootstrap.Modal(document.getElementById('resultModal'));
-            const resultMessage = document.getElementById('resultMessage');
-            
-            // Establecer el mensaje y la clase según el tipo
-            resultMessage.innerHTML = message;
-            resultMessage.className = 'modal-body';
-            
-            // Agregar clase según el tipo de mensaje
-            if (type === 'success') {
-                resultMessage.innerHTML = `<div class="alert alert-success">${message}</div>`;
-            } else if (type === 'error') {
-                resultMessage.innerHTML = `<div class="alert alert-danger">${message}</div>`;
-            } else {
-                resultMessage.innerHTML = `<div class="alert alert-info">${message}</div>`;
+            console.log(`Mostrando mensaje de ${type}:`, message);
+            const resultModalElement = document.getElementById('resultModal');
+
+            if (!resultModalElement) {
+                console.error('No se encontró el elemento del modal de resultados');
+                return;
             }
-            
-            resultModal.show();
+
+            // Cerrar el modal actual si existe
+            closeCurrentModal();
+
+            // Crear una nueva instancia del modal
+            currentModal = new bootstrap.Modal(resultModalElement);
+            const resultMessage = document.getElementById('resultMessage');
+
+            if (!resultMessage) {
+                console.error('No se encontró el elemento del mensaje de resultados');
+                return;
+            }
+
+            // Configurar el mensaje
+            let alertClass = 'alert-info';
+            if (type === 'success') {
+                alertClass = 'alert-success';
+            } else if (type === 'error') {
+                alertClass = 'alert-danger';
+            }
+
+            // Actualizar el contenido del mensaje
+            resultMessage.innerHTML = `<div class="alert ${alertClass} mb-0">${message}</div>`;
+
+            // Mostrar el modal
+            currentModal.show();
+
+            // Configurar el botón de cierre
+            const closeButton = resultModalElement.querySelector('.btn-close');
+            if (closeButton) {
+                closeButton.style.display = type === 'success' ? 'none' : 'block';
+            }
+
+            console.log('Modal mostrado correctamente');
         }
 
-        function submitForm() {
-            document.getElementById('crearColeccionForm').submit();
-        }
+        // Limpiar la referencia al modal cuando se cierre
+        document.addEventListener('hidden.bs.modal', function (event) {
+            if (event.target === document.getElementById('resultModal')) {
+                currentModal = null;
+            }
+        });
     </script>
 </body>
-</html> 
+</html>
