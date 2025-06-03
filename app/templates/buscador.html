@@ -4,13 +4,37 @@
 
 {% block extra_css %}
 <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<style>
+    .alert-service-unavailable {
+        max-width: 800px;
+        margin: 2rem auto;
+    }
+    .service-unavailable-icon {
+        font-size: 4rem;
+        color: #dc3545;
+        margin-bottom: 1rem;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
     <h1 class="text-center mb-4">Buscador de Documentos</h1>
+    
+    {% if not elasticsearch_available %}
+    <div class="alert alert-warning alert-service-unavailable text-center">
+        <div class="service-unavailable-icon">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <h3>Servicio de búsqueda no disponible</h3>
+        <p class="mb-0">
+            El servicio de búsqueda no está disponible en este momento. Estamos trabajando para solucionar el problema.
+            Por favor, intente nuevamente más tarde o póngase en contacto con el administrador del sistema.
+        </p>
+    </div>
+    {% endif %}
 
-    <div class="container mt-4">
+    <div class="container mt-4" {% if not elasticsearch_available %}style="display: none;"{% endif %}>
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="card">
@@ -19,32 +43,29 @@
                     </div>
                     <div class="card-body">
                         <form id="searchForm" method="POST" action="{{ url_for('main.buscador') }}">
-                            <!-- Primera fila -->
                             <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <label for="search_type" class="form-label">Buscar en:</label>
-                                    <select class="form-select" id="search_type" name="search_type" required>
-                                        <option value="texto" {% if search_type == 'texto' %}selected{% endif %}>Texto</option>
-                                        <option value="titulo" {% if search_type == 'titulo' %}selected{% endif %}>Título</option>
-                                        <option value="autor" {% if search_type == 'autor' %}selected{% endif %}>Autor</option>
-                                        <option value="categoria" {% if search_type == 'categoria' %}selected{% endif %}>Categoría</option>
-                                    </select>
+                                <div class="col-md-6">
+                                    <label for="query" class="form-label">Términos de búsqueda:</label>
+                                    <input type="text" class="form-control" id="query" name="query" 
+                                           value="{{ query }}" placeholder="Ingrese su búsqueda...">
+                                    <div class="form-text">
+                                        Buscará en títulos, contenido y autores. Use comillas para frases exactas.
+                                    </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <label for="fecha_desde" class="form-label">Fecha desde:</label>
-                                    <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" value="{{ fecha_desde|default('1500-01-01') }}">
+                                    <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" 
+                                           value="{{ fecha_desde }}">
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <label for="fecha_hasta" class="form-label">Fecha hasta:</label>
-                                    <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="">
-                                </div>
-                            </div>
-
-                            <!-- Segunda fila -->
-                            <div class="row mb-3">
-                                <div class="col-12">
-                                    <label for="search_text" class="form-label">Texto a buscar:</label>
-                                    <input type="text" class="form-control" id="search_text" name="search_text" value="{{ search_text }}" required>
+                                    <div class="input-group">
+                                        <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta"
+                                               value="{{ fecha_hasta }}">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-search"></i> Buscar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -71,48 +92,50 @@
         </div>
         {% endif %}
 
-        {% if hits %}
-        <pre>{{query}}</pre>
-        <div class="row justify-content-center mt-4" id="div_resultado_busquedas">
-            <!-- Columna de filtros -->
-            <div class="col-md-3">
+        {% if resultados %}
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-10">
                 <div class="card">
-                    <div class="card-header">
-                        <h5>Filtros</h5>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Resultados de la búsqueda</h5>
+                        <span class="badge bg-primary">{{ resultados.hits.total.value }} resultados encontrados</span>
                     </div>
                     <div class="card-body">
-                        {% for agg_name, agg_data in aggregations.items() %}
-                        <div class="accordion mb-3" id="accordion{{ agg_name }}">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ agg_name }}">
-                                        {{ agg_name|capitalize }}
-                                    </button>
-                                </h2>
-                                <div id="collapse{{ agg_name }}" class="accordion-collapse collapse" data-bs-parent="#accordion{{ agg_name }}">
-                                    <div class="accordion-body">
-                                        {% if agg_name == 'Fecha' %}
-                                            {% for bucket in agg_data.buckets %}
-                                                {% if bucket.doc_count>0 %}
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" value="{{ bucket.key_as_string }}" id="{{ agg_name }}_{{ bucket.key_as_string }}">
-                                                        <label class="form-check-label" for="{{ agg_name }}_{{ bucket.key_as_string }}">
-                                                            {{ bucket.key_as_string }} ({{ bucket.doc_count }})
-                                                        </label>
-                                                    </div>
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            {% for bucket in agg_data.buckets %}
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value="{{ bucket.key }}" id="{{ agg_name }}_{{ bucket.key }}">
-                                                <label class="form-check-label" for="{{ agg_name }}_{{ bucket.key }}">
-                                                    {{ bucket.key }} ({{ bucket.doc_count }})
-                                                </label>
-                                            </div>
-                                            {% endfor %}
-                                        {% endif %}
+                        {% for hit in resultados.hits.hits %}
+                        <div class="card mb-3" id="doc-{{ hit._id }}">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a href="{{ url_for('main.ver_documento', document_id=hit._id) }}" class="text-decoration-none">
+                                        {{ hit._source.titulo }}
+                                    </a>
+                                </h5>
+                                <h6 class="card-subtitle mb-2 text-muted">
+                                    <i class="bi bi-person-fill"></i> {{ hit._source.autor }}
+                                    <span class="ms-3">
+                                        <i class="bi bi-calendar3"></i> {{ hit._source.fecha_publicacion }}
+                                    </span>
+                                </h6>
+                                {% if hit.highlight and hit.highlight.contenido %}
+                                    <p class="card-text">
+                                        {% for fragment in hit.highlight.contenido %}
+                                            {{ fragment|safe }}...
+                                        {% endfor %}
+                                    </p>
+                                {% else %}
+                                    <p class="card-text">
+                                        {{ hit._source.contenido|truncate(300) }}
+                                    </p>
+                                {% endif %}
+                                <div class="mt-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        {% for etiqueta in hit._source.etiquetas %}
+                                            <span class="badge bg-secondary me-1">{{ etiqueta }}</span>
+                                        {% endfor %}
                                     </div>
+                                    <a href="{{ url_for('main.ver_documento', document_id=hit._id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        Ver documento completo <i class="bi bi-arrow-right"></i>
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -120,35 +143,13 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Columna de resultados -->
-            <div class="col-md-9">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Resultados</h5>
-                    </div>
-                    <div class="card-body">
-                        <table id="resultadosTable" class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Título</th>
-                                    <th>Autor</th>
-                                    <th>Categoría</th>
-                                    <th>Fecha</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for hit in hits %}
-                                <tr>
-                                    <td>{{ hit._source.titulo }}</td>
-                                    <td>{{ hit._source.autor }}</td>
-                                    <td>{{ hit._source.categoria }}</td>
-                                    <td>{{ hit._source.fecha }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+        </div>
+        {% elif query %}
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-10">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    No se encontraron resultados para "{{ query }}". Intenta con otros términos de búsqueda.
                 </div>
             </div>
         </div>
@@ -156,29 +157,54 @@
     </pre>
 
 {% block extra_js %}
+{% if elasticsearch_available %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+{% else %}
+<!-- No cargar scripts de búsqueda si Elasticsearch no está disponible -->
+{% endif %}
 
 <script>
 // Función para establecer fechas por defecto
 function setDefaultDate() {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
     
-    // Establecer la fecha actual en el campo de fecha hasta
+    // Establecer la fecha actual como máximo para ambos campos
+    document.getElementById('fecha_desde').max = today;
+    document.getElementById('fecha_hasta').max = today;
+    
+    // Si no hay valor en fecha_hasta, establecer la fecha actual
     const fechaHasta = document.getElementById('fecha_hasta');
-    if (fechaHasta && !fechaHasta.value) {
-        fechaHasta.value = dateStr;
+    if (!fechaHasta.value) {
+        fechaHasta.value = today;
     }
     
-    // Establecer una fecha por defecto para 'desde' (1 de enero del año actual)
+    // Si no hay valor en fecha_desde, establecer el primer día del año actual
     const fechaDesde = document.getElementById('fecha_desde');
-    if (fechaDesde && !fechaDesde.value) {
-        const defaultDate = new Date(today.getFullYear(), 0, 1);
-        const defaultDateStr = defaultDate.toISOString().split('T')[0];
-        fechaDesde.value = defaultDateStr || '1500-01-01';
+    if (!fechaDesde.value) {
+        const defaultDate = new Date();
+        defaultDate.setMonth(0, 1); // 1 de enero del año actual
+        fechaDesde.value = defaultDate.toISOString().split('T')[0];
     }
+    
+    // Validar que la fecha desde no sea mayor a la fecha hasta
+    if (fechaDesde.value > fechaHasta.value) {
+        fechaHasta.value = fechaDesde.value;
+    }
+    
+    // Añadir validación en tiempo real
+    fechaDesde.addEventListener('change', function() {
+        if (this.value > fechaHasta.value) {
+            fechaHasta.value = this.value;
+        }
+    });
+    
+    fechaHasta.addEventListener('change', function() {
+        if (this.value < fechaDesde.value) {
+            fechaDesde.value = this.value;
+        }
+    });
 }
 
 // Función para limpiar el formulario

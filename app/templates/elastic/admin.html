@@ -1,0 +1,205 @@
+{% extends "elastic/base.html" %}
+
+{% block elastic_content %}
+<div class="row">
+    <!-- Panel de estadísticas -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Estado</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {% if index_exists %}
+                                <span class="text-success">Activo</span>
+                            {% else %}
+                                <span class="text-danger">No inicializado</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-power-off fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Documentos</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ doc_count|default(0) }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-file-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Índice</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="text-break">
+                                {{ index_name }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-database fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Acciones -->
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow
+            {% if not index_exists %}
+                border-danger
+            {% endif %}
+        ">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Acciones</h6>
+            </div>
+            <div class="card-body">
+                {% if not index_exists %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        El índice no existe. Cree un índice para comenzar a usar Elasticsearch.
+                    </div>
+                {% endif %}
+                
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('elastic.agregar_documentos') }}" 
+                       class="btn btn-elastic btn-block mb-2">
+                        <i class="fas fa-upload me-2"></i>Importar Documentos
+                    </a>
+                    
+                    <a href="{{ url_for('elastic.listar_documentos') }}" 
+                       class="btn btn-outline-primary btn-block mb-2">
+                        <i class="fas fa-list me-2"></i>Ver Documentos
+                    </a>
+                    
+                    {% if not index_exists %}
+                        <button class="btn btn-success btn-block mb-2" 
+                                onclick="crearIndice()">
+                            <i class="fas fa-plus-circle me-2"></i>Crear Índice
+                        </button>
+                    {% else %}
+                        <button class="btn btn-danger btn-block mb-2" 
+                                onclick="eliminarIndice()">
+                            <i class="fas fa-trash-alt me-2"></i>Eliminar Índice
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del sistema -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Información del Sistema</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="font-weight-bold">Estado del Servicio</h6>
+                    {% if index_exists %}
+                        <span class="badge bg-success">En línea</span>
+                    {% else %}
+                        <span class="badge bg-danger">No disponible</span>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="font-weight-bold">Documentos Indexados</h6>
+                    <p class="mb-0">{{ doc_count|default(0) }} documentos</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="font-weight-bold">Tamaño del Índice</h6>
+                    <p class="mb-0">No disponible</p>
+                </div>
+                
+                <div class="mb-0">
+                    <h6 class="font-weight-bold">Última Actualización</h6>
+                    <p class="mb-0">No disponible</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Función para crear un nuevo índice
+function crearIndice() {
+    if (confirm('¿Está seguro de que desea crear un nuevo índice? Esto eliminará cualquier índice existente con el mismo nombre.')) {
+        fetch('{{ url_for("elastic.crear_indice") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Índice creado exitosamente');
+                location.reload();
+            } else {
+                alert('Error al crear el índice: ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar la solicitud');
+        });
+    }
+}
+
+// Función para eliminar el índice
+function eliminarIndice() {
+    if (confirm('¿Está seguro de que desea eliminar el índice? Esta acción no se puede deshacer y eliminará todos los documentos.')) {
+        fetch('{{ url_for("elastic.eliminar_indice") }}', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Índice eliminado exitosamente');
+                location.reload();
+            } else {
+                alert('Error al eliminar el índice: ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar la solicitud');
+        });
+    }
+}
+</script>
+{% endblock %}

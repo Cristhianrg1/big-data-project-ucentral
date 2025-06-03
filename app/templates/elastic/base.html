@@ -1,0 +1,105 @@
+{% extends "gestion/base.html" %}
+
+{% block title %}Elasticsearch Manager - BigData-MiProyecto{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+    .card {
+        margin-bottom: 20px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        border: none;
+        border-radius: 0.35rem;
+    }
+    .card-header {
+        background-color: #f8f9fc;
+        border-bottom: 1px solid #e3e6f0;
+        font-weight: 600;
+    }
+    .btn-elastic {
+        color: #fff;
+        background-color: #36b9cc;
+        border-color: #36b9cc;
+    }
+    .btn-elastic:hover {
+        background-color: #2c9faf;
+        border-color: #2a96a5;
+    }
+    .stat-card {
+        border-left: 0.25rem solid #36b9cc !important;
+    }
+    .stat-card .card-body {
+        padding: 1.25rem;
+    }
+    .stat-card .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    .stat-card .stat-label {
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #858796;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Elasticsearch Manager</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Elasticsearch</li>
+            </ol>
+        </nav>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% block elastic_content %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Función para confirmar eliminación de documentos
+function confirmarEliminacion(docId, docTitle = 'este documento') {
+    if (confirm(`¿Está seguro de que desea eliminar ${docTitle}?`)) {
+        fetch(`/gestion/elastic/eliminar-documento/${docId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Recargar la página después de eliminar
+                location.reload();
+            } else {
+                alert('Error al eliminar el documento: ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar la solicitud');
+        });
+    }
+    return false;
+}
+</script>
+{% endblock %}

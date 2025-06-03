@@ -29,10 +29,15 @@ def create_app():
     from .auth import auth_bp
     from .database import db_bp
     from .main import main_bp
+    from .elasticsearch import elastic_bp
     
+    # Registrar blueprints con sus prefijos de URL
     app.register_blueprint(main_bp, url_prefix='')
     app.register_blueprint(auth_bp, url_prefix='')
     app.register_blueprint(db_bp, url_prefix='')
+    
+    # Registrar el blueprint de Elasticsearch con el prefijo /gestion/elastic
+    app.register_blueprint(elastic_bp, url_prefix='/gestion/elastic')
         
     # Ruta de dashboard - Requiere autenticación
     @app.route('/dashboard')

@@ -1,0 +1,176 @@
+{% extends "elastic/base.html" %}
+
+{% block title %}Agregar Documentos - Elasticsearch - BigData-MiProyecto{% endblock %}
+
+{% block elastic_content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Agregar Documentos a Elasticsearch</h1>
+    <a href="{{ url_for('elastic.admin') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al Panel
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Subir Archivos</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Puede subir archivos JSON individuales o un archivo ZIP que contenga múltiples archivos JSON.
+                    Los archivos JSON pueden contener un solo objeto o un array de objetos.
+                </div>
+                
+                <form id="uploadForm" method="POST" enctype="multipart/form-data" action="{{ url_for('elastic.agregar_documentos') }}">
+                    <div class="mb-3">
+                        <label for="archivo" class="form-label">Seleccionar archivo</label>
+                        <input class="form-control" type="file" id="archivo" name="archivo" accept=".json,.zip" required>
+                        <div class="form-text">
+                            Formatos soportados: .json, .zip (con archivos .json en su interior)
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="btnSubir">
+                            <i class="fas fa-upload me-2"></i>Subir e Indexar
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="uploadProgress" class="mt-3 d-none">
+                    <div class="progress mb-3">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%">
+                            0%
+                        </div>
+                    </div>
+                    <div id="statusText" class="text-center">Procesando archivo...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Formato de Archivo</h6>
+            </div>
+            <div class="card-body">
+                <p>Los archivos JSON deben tener uno de los siguientes formatos:</p>
+                
+                <div class="mb-3">
+                    <h6>1. Un solo documento:</h6>
+                    <pre class="bg-light p-2 rounded"><code>{
+  "titulo": "Documento de ejemplo",
+  "contenido": "Este es un documento de ejemplo",
+  "fecha": "2023-01-01",
+  "etiquetas": ["ejemplo", "documento"]
+}</code></pre>
+                </div>
+                
+                <div>
+                    <h6>2. Múltiples documentos (array):</h6>
+                    <pre class="bg-light p-2 rounded"><code>[
+  {
+    "titulo": "Documento 1",
+    "contenido": "Contenido del documento 1"
+  },
+  {
+    "titulo": "Documento 2",
+    "contenido": "Contenido del documento 2"
+  }
+]</code></pre>
+                </div>
+                
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Importante:</strong> Los archivos muy grandes pueden tardar en procesarse.
+                    Para conjuntos de datos grandes, considere dividirlos en lotes más pequeños.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Manejar el envío del formulario con AJAX para mostrar progreso
+const form = document.getElementById('uploadForm');
+const uploadProgress = document.getElementById('uploadProgress');
+const progressBar = document.getElementById('progressBar');
+const statusText = document.getElementById('statusText');
+const btnSubir = document.getElementById('btnSubir');
+
+form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
+    
+    // Mostrar indicador de progreso
+    uploadProgress.classList.remove('d-none');
+    btnSubir.disabled = true;
+    
+    // Configurar la solicitud
+    xhr.open('POST', form.action, true);
+    
+    // Actualizar barra de progreso
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            progressBar.style.width = percentComplete + '%';
+            progressBar.textContent = percentComplete + '%';
+            
+            if (percentComplete < 100) {
+                statusText.textContent = `Subiendo archivo: ${percentComplete}%`;
+            } else {
+                statusText.textContent = 'Procesando archivo...';
+            }
+        }
+    };
+    
+    // Manejar la respuesta
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                    // Redirigir después de 2 segundos
+                    statusText.innerHTML = `<span class="text-success">${response.message || 'Archivo procesado correctamente'}</span>`;
+                    setTimeout(() => {
+                        window.location.href = "{{ url_for('elastic.listar_documentos') }}";
+                    }, 1500);
+                } else {
+                    showError(response.error || 'Error al procesar el archivo');
+                }
+            } catch (e) {
+                showError('Error al procesar la respuesta del servidor');
+            }
+        } else {
+            showError(`Error ${xhr.status}: ${xhr.statusText}`);
+        }
+        
+        btnSubir.disabled = false;
+    };
+    
+    // Manejar errores
+    xhr.onerror = function() {
+        showError('Error de conexión. Por favor, intente de nuevo.');
+        btnSubir.disabled = false;
+    };
+    
+    // Enviar el formulario
+    xhr.send(formData);
+});
+
+function showError(message) {
+    statusText.innerHTML = `<span class="text-danger">${message}</span>`;
+    progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+    progressBar.classList.add('bg-danger');
+}
+</script>
+{% endblock %}

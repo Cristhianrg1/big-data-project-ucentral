@@ -61,12 +61,15 @@
                         </ul>
                     </div>
                     <div class="dropdown">
-                        <a class="list-group-item list-group-item-action dropdown-toggle disabled" href="#" id="elasticDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="list-group-item list-group-item-action dropdown-toggle" href="#" id="elasticDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-search me-2"></i>Elasticsearch
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="elasticDropdown">
-                            <li><a class="dropdown-item" href="#">Gestión de Índices</a></li>
-                            <li><a class="dropdown-item" href="#">Búsquedas</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('elastic.admin') }}">Panel de Control</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('elastic.listar_documentos') }}">Listar Documentos</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('elastic.agregar_documentos') }}">Agregar Documentos</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('elastic.crear_indice') }}">Crear Índice</a></li>
                         </ul>
                     </div>
                 </div>
