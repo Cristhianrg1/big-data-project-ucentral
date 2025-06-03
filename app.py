@@ -7,9 +7,32 @@ from datetime import datetime
 import json
 import re
 from elasticsearch import Elasticsearch
+from dotenv import load_dotenv
+import logging
+
+# Cargar variables de entorno
+load_dotenv()
+
+# Configuración básica de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
+)
 
 app = Flask(__name__)
-app.secret_key = 'tu_clave_secreta_aqui'  # Cambia esto por una clave secreta segura
+# Configuración de la aplicación
+app.config.update(
+    SECRET_KEY=os.getenv('FLASK_SECRET_KEY', 'clave_por_defecto_insegura'),
+    DEBUG=os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 't'),
+    MONGO_URI=os.getenv('MONGO_URI'),
+    ELASTICSEARCH_HOST=os.getenv('ELASTICSEARCH_HOST'),
+    ELASTICSEARCH_API_KEY=os.getenv('ELASTICSEARCH_API_KEY'),
+    ELASTICSEARCH_INDEX=os.getenv('ELASTICSEARCH_INDEX', 'ucentral_test')
+)
 
 # Agregar la función now al contexto de la plantilla
 @app.context_processor
@@ -19,30 +42,52 @@ def inject_now():
 # Versión de la aplicación
 VERSION_APP = "Versión 2.2 del Mayo 22 del 2025"
 CREATOR_APP = "Nombre del creador/ruta github"
-mongo_uri   = os.environ.get("MONGO_URI")
+
+# Obtener configuración de la aplicación
+mongo_uri = app.config['MONGO_URI']
 
 if not mongo_uri:
-    #uri = "mongodb+srv://DbCentral:DbCentral2025@cluster0.vhltza7.mongodb.net/?appName=Cluster0"
-    uri         = ""
-    mongo_uri   = uri
+    logging.error("No se ha configurado MONGO_URI en las variables de entorno")
+    # En producción, podrías querer salir aquí si no hay conexión a MongoDB
+    # import sys; sys.exit(1)
 
 # Función para conectar a MongoDB
 def connect_mongo():
     try:
-        client = MongoClient(mongo_uri, server_api=ServerApi('1'))
+        if not mongo_uri:
+            logging.error("MONGO_URI no está configurada")
+            return None
+            
+        client = MongoClient(
+            mongo_uri,
+            server_api=ServerApi('1'),
+            connectTimeoutMS=5000,  # 5 segundos de timeout
+            socketTimeoutMS=30000,   # 30 segundos de timeout
+            serverSelectionTimeoutMS=5000  # 5 segundos para seleccionar el servidor
+        )
+        
+        # Verificar la conexión
         client.admin.command('ping')
-        print("Conexión exitosa a MongoDB!")
+        logging.info("Conexión exitosa a MongoDB!")
         return client
     except Exception as e:
-        print(f"Error al conectar a MongoDB: {e}")
+        logging.error(f"Error al conectar a MongoDB: {e}")
         return None
 
 # Configuración de Elasticsearch
-client = Elasticsearch(
-    "https://indexprueba-cb87f3.es.us-east-1.aws.elastic.cloud:443",
-    api_key="Q3VEYy1KWUJHdDB6RGdJR3gyc0g6cThLVzhJZS05eGxta0Q0NXQxTHYxZw=="
-)
-INDEX_NAME = "ucentral_test"
+try:
+    client = Elasticsearch(
+        app.config['ELASTICSEARCH_HOST'],
+        api_key=app.config['ELASTICSEARCH_API_KEY'],
+        verify_certs=True  # Importante para producción
+    )
+    # Verificar la conexión a Elasticsearch
+    if not client.ping():
+        logging.error("No se pudo conectar a Elasticsearch")
+        client = None
+except Exception as e:
+    logging.error(f"Error al conectar con Elasticsearch: {e}")
+    client = None
 
 @app.route('/')
 def index():
