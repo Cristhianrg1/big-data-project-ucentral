@@ -439,11 +439,11 @@ def elasticAdmin():
     
     try:
         # Obtener información del índice
-        index_info = client.indices.get(index=ELASTICSEARCH_INDEX)
-        doc_count = client.count(index=ELASTICSEARCH_INDEX)['count']
+        index_info = client.indices.get(index=app.config['ELASTICSEARCH_INDEX'])
+        doc_count = client.count(index=app.config['ELASTICSEARCH_INDEX'])['count']
         
         return render_template('gestion/ver_elasticAdmin.html',
-                            ELASTICSEARCH_INDEX=ELASTICSEARCH_INDEX,
+                            ELASTICSEARCH_INDEX=app.config['ELASTICSEARCH_INDEX'],
                             doc_count=doc_count,
                             version=VERSION_APP,
                             creador=CREATOR_APP,
@@ -465,7 +465,7 @@ def elastic_agregar_documentos():
             if 'zipFile' not in request.files:
                 return render_template('gestion/elastic_agregar_documentos.html',
                                     error_message='No se ha seleccionado ningún archivo',
-                                    ELASTICSEARCH_INDEX=ELASTICSEARCH_INDEX,
+                                    ELASTICSEARCH_INDEX=app.config['ELASTICSEARCH_INDEX'],
                                     version=VERSION_APP,
                                     creador=CREATOR_APP,
                                     usuario=session['usuario'])
@@ -474,7 +474,7 @@ def elastic_agregar_documentos():
             if zip_file.filename == '':
                 return render_template('gestion/elastic_agregar_documentos.html',
                                     error_message='No se ha seleccionado ningún archivo',
-                                    ELASTICSEARCH_INDEX=ELASTICSEARCH_INDEX,
+                                    ELASTICSEARCH_INDEX=app.config['ELASTICSEARCH_INDEX'],
                                     version=VERSION_APP,
                                     creador=CREATOR_APP,
                                     usuario=session['usuario'])
@@ -503,10 +503,10 @@ def elastic_agregar_documentos():
                                 json_data = json.load(f)
                                 if isinstance(json_data, list):
                                     for doc in json_data:
-                                        client.index(index=ELASTICSEARCH_INDEX, document=doc)
+                                        client.index(index=app.config['ELASTICSEARCH_INDEX'], document=doc)
                                         success_count += 1
                                 else:
-                                    client.index(index=ELASTICSEARCH_INDEX, document=json_data)
+                                    client.index(index=app.config['ELASTICSEARCH_INDEX'], document=json_data)
                                     success_count += 1
                         except Exception as e:
                             error_count += 1
@@ -522,7 +522,7 @@ def elastic_agregar_documentos():
             
             return render_template('gestion/elastic_agregar_documentos.html',
                                 success_message=f'Se indexaron {success_count} documentos exitosamente. Errores: {error_count}',
-                                ELASTICSEARCH_INDEX=ELASTICSEARCH_INDEX,
+                                ELASTICSEARCH_INDEX=app.config['ELASTICSEARCH_INDEX'],
                                 version=VERSION_APP,
                                 creador=CREATOR_APP,
                                 usuario=session['usuario'])
@@ -530,13 +530,13 @@ def elastic_agregar_documentos():
         except Exception as e:
             return render_template('gestion/elastic_agregar_documentos.html',
                                 error_message=f'Error al procesar el archivo: {str(e)}',
-                                ELASTICSEARCH_INDEX=ELASTICSEARCH_INDEX,
+                                ELASTICSEARCH_INDEX=app.config['ELASTICSEARCH_INDEX'],
                                 version=VERSION_APP,
                                 creador=CREATOR_APP,
                                 usuario=session['usuario'])
     
     return render_template('gestion/elastic_agregar_documentos.html',
-                         ELASTICSEARCH_INDEX=ELASTICSEARCH_INDEX,
+                         ELASTICSEARCH_INDEX=app.config['ELASTICSEARCH_INDEX'],
                          version=VERSION_APP,
                          creador=CREATOR_APP,
                          usuario=session['usuario'])
@@ -549,7 +549,7 @@ def elastic_listar_documentos():
     try:
         # Obtener los primeros 100 documentos
         response = client.search(
-            index=ELASTICSEARCH_INDEX,
+            index=app.config['ELASTICSEARCH_INDEX'],
             body={
                 "query": {"match_all": {}},
                 "size": 100
@@ -559,7 +559,7 @@ def elastic_listar_documentos():
         documents = response['hits']['hits']
         
         return render_template('gestion/elastic_listar_documentos.html',
-                            ELASTICSEARCH_INDEX=ELASTICSEARCH_INDEX,
+                            ELASTICSEARCH_INDEX=app.config['ELASTICSEARCH_INDEX'],
                             documents=documents,
                             version=VERSION_APP,
                             creador=CREATOR_APP,
@@ -567,7 +567,7 @@ def elastic_listar_documentos():
     except Exception as e:
         return render_template('gestion/elastic_listar_documentos.html',
                             error_message=f'Error al obtener documentos: {str(e)}',
-                            ELASTICSEARCH_INDEX=ELASTICSEARCH_INDEX,
+                            ELASTICSEARCH_INDEX=app.config['ELASTICSEARCH_INDEX'],
                             version=VERSION_APP,
                             creador=CREATOR_APP,
                             usuario=session['usuario'])
@@ -582,7 +582,7 @@ def elastic_eliminar_documento():
         if not doc_id:
             return jsonify({'error': 'ID de documento no proporcionado'}), 400
         
-        response = client.delete(index=ELASTICSEARCH_INDEX, id=doc_id)
+        response = client.delete(index=app.config['ELASTICSEARCH_INDEX'], id=doc_id)
         
         if response['result'] == 'deleted':
             return jsonify({'success': True})
@@ -672,7 +672,7 @@ def buscador():
 
             # Ejecutar la búsqueda en Elasticsearch
             response = client.search(
-                index=ELASTICSEARCH_INDEX,
+                index=app.config['ELASTICSEARCH_INDEX'],
                 body=query
             )
 
@@ -705,12 +705,12 @@ def buscador():
 def search():
     try:
         data = request.get_json()
-        ELASTICSEARCH_INDEX = data.get('index', 'ucentral_test')
+        ELASTICSEARCH_INDEX = app.config['ELASTICSEARCH_INDEX']
         query = data.get('query')
 
         # Ejecutar la búsqueda en Elasticsearch
         response = client.search(
-            index=ELASTICSEARCH_INDEX,
+            index=app.config['ELASTICSEARCH_INDEX'],
             body=query
         )
 
