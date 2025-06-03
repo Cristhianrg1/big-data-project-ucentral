@@ -7,13 +7,13 @@ from . import main_bp
 @main_bp.route('/')
 def index():
     return render_template('index.html', 
-                         creador=current_app.config.get('CREADOR', 'XYZ'),
+                         creador=current_app.config.get('CREATOR_APP', 'XYZ'),
                          version=current_app.config.get('VERSION_APP', '1.0.0'))
 
 @main_bp.route('/about')
 def about():
     return render_template('about.html',
-                         creador=current_app.config.get('CREADOR', 'XYZ'),
+                         creador=current_app.config.get('CREATOR_APP', 'XYZ'),
                          version=current_app.config.get('VERSION_APP', '1.0.0'))
 
 @main_bp.route('/contacto', methods=['GET', 'POST'])
@@ -65,7 +65,7 @@ def contacto():
                 flash('Ocurrió un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde.', 'error')
     
     return render_template('contacto.html',
-                         creador=current_app.config.get('CREADOR', 'XYZ'),
+                         creador=current_app.config.get('CREATOR_APP', 'XYZ'),
                          version=current_app.config.get('VERSION_APP', '1.0.0'))
 
 @main_bp.route('/buscador', methods=['GET', 'POST'])
@@ -86,8 +86,11 @@ def buscador(es_client=None):
         # Verificar si hay una búsqueda guardada en la sesión
         last_search = session.get('last_search', {})
         
-        # Si es GET sin parámetros pero hay una búsqueda previa, usarla
-        if request.method == 'GET' and not query and last_search:
+        # Verificar si venimos de ver un documento (tiene el parámetro from_doc)
+        from_document = request.args.get('from_doc', 'false').lower() == 'true'
+        
+        # Si es GET sin parámetros pero hay una búsqueda previa y venimos de ver un documento, usarla
+        if request.method == 'GET' and not query and last_search and from_document:
             query = last_search.get('query', '')
             fecha_desde = last_search.get('fecha_desde', '')
             fecha_hasta = last_search.get('fecha_hasta', '')
@@ -151,19 +154,16 @@ def buscador(es_client=None):
                 body=query_body
             )
         
-        # Guardar parámetros de búsqueda en la sesión solo si hay búsqueda
-        if query or fecha_desde or fecha_hasta:
+        # Guardar parámetros de búsqueda en la sesión solo si es una nueva búsqueda (POST)
+        if request.method == 'POST' and (query or fecha_desde or fecha_hasta):
             session['last_search'] = {
                 'query': query,
                 'fecha_desde': fecha_desde,
                 'fecha_hasta': fecha_hasta
             }
-        elif 'last_search' in session:
-            # Si no hay parámetros de búsqueda, limpiar la búsqueda guardada
-            session.pop('last_search', None)
         
         return render_template('buscador.html',
-                           creador=current_app.config.get('CREADOR', 'XYZ'),
+                           creador=current_app.config.get('CREATOR_APP', 'XYZ'),
                            version=current_app.config.get('VERSION_APP', '1.0.0'),
                            elasticsearch_available=True,
                            resultados=resultados,
@@ -174,7 +174,7 @@ def buscador(es_client=None):
         current_app.logger.error(f'Error en la búsqueda: {str(e)}')
         flash('Ocurrió un error al realizar la búsqueda. Por favor, intente más tarde.', 'error')
         return render_template('buscador.html',
-                           creador=current_app.config.get('CREADOR', 'XYZ'),
+                           creador=current_app.config.get('CREATOR_APP', 'XYZ'),
                            version=current_app.config.get('VERSION_APP', '1.0.0'),
                            elasticsearch_available=False,
                            resultados=None,
@@ -199,7 +199,7 @@ def ver_documento(document_id, es_client=None):
         last_search = session.get('last_search', {})
         
         return render_template('ver_documento.html',
-                           creador=current_app.config.get('CREADOR', 'XYZ'),
+                           creador=current_app.config.get('CREATOR_APP', 'XYZ'),
                            version=current_app.config.get('VERSION_APP', '1.0.0'),
                            documento=resultado['_source'],
                            doc_id=document_id,

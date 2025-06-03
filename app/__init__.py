@@ -46,19 +46,19 @@ def create_app():
             return redirect(url_for('auth.login', next=url_for('dashboard')))
         return render_template('gestion/dashboard.html')
     
+    # Contexto global para todas las plantillas
+    @app.context_processor
+    def inject_global_vars():
+        return {
+            'creador': app.config.get('CREATOR_APP', 'Cristhian Rodriguez'),
+            'version': app.config.get('VERSION_APP', '1.0.0')
+        }
+
     @app.route('/health')
     def health_check():
         return jsonify({
             'status': 'healthy',
             'version': app.config['VERSION_APP']
         }), 200
-    
-    # Inyectar variables globales a las plantillas
-    @app.context_processor
-    def inject_config():
-        return {
-            'version': app.config['VERSION_APP'],
-            'creador': app.config['CREATOR_APP']
-        }
     
     return app

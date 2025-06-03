@@ -1,14 +1,157 @@
 {% extends "base_public.html" %}
 
+{% block extra_css %}
+{{ super() }}
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 5rem 0;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29-22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+        opacity: 0.5;
+    }
+    
+    .hero-content {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .feature-card {
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+        background: var(--bs-white);
+    }
+    
+    [data-bs-theme="dark"] .feature-card {
+        background: var(--bs-dark-bg-subtle);
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--bs-primary);
+    }
+    
+    .btn-custom {
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        border-radius: 50px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .university-logo {
+        max-height: 60px;
+        margin: 2rem 0;
+        filter: brightness(0) invert(1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1 class="text-center">
-        Bienvenidos al proyecto de BigData<BR> 
-        creado por XYZ<br> 
-        como parte de <br>
-        un proyecto de clase<br> 
-        En la maestría de Analítica de Datos <br>
-        De la Universidad Central
-    </h1>
-</div>
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row justify-content-center text-center">
+            <div class="col-lg-8 hero-content">
+                <h1 class="display-4 fw-bold mb-4 text-white">Explora el Poder de los Datos</h1>
+                <p class="lead mb-5 text-white">Una plataforma avanzada para el análisis y procesamiento de grandes volúmenes de información</p>
+                <a href="{{ url_for('main.buscador') }}" class="btn btn-light btn-lg btn-custom me-3">
+                    <i class="bi bi-search me-2"></i>Comenzar Búsqueda
+                </a>
+                <a href="#features" class="btn btn-outline-light btn-lg btn-custom">
+                    <i class="bi bi-info-circle me-2"></i>Más Información
+                </a>
+                
+                <div class="mt-5">
+                    <p class="mb-2">Proyecto desarrollado por:</p>
+                    <h4 class="mb-3 text-white">Cristhian Rodriguez</h4>
+                    <p class="mb-0">Maestría en Analítica de Datos</p>
+                    <p>Universidad Central</p>
+                    <p class="small mt-2">Desarrollado con asistencia de IA</p>
+                    <img src="https://www.ucentral.edu.co/sites/default/files/logo_1.png" alt="Logo Universidad Central" class="university-logo img-fluid" style="max-width: 200px; height: auto; margin-top: 1rem;">
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section id="features" class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold mb-3">Características Principales</h2>
+            <p class="lead text-muted">Descubre todo lo que nuestra plataforma tiene para ofrecerte</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card feature-card h-100 p-4">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">
+                            <i class="bi bi-lightning-charge"></i>
+                        </div>
+                        <h3 class="h4">Búsqueda Rápida</h3>
+                        <p class="text-muted">Encuentra información relevante en segundos con nuestra potente tecnología de búsqueda.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card feature-card h-100 p-4">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">
+                            <i class="bi bi-funnel"></i>
+                        </div>
+                        <h3 class="h4">Filtros Avanzados</h3>
+                        <p class="text-muted">Refina tus búsquedas con múltiples criterios para obtener resultados más precisos.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card feature-card h-100 p-4">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <h3 class="h4">Visualización de Datos</h3>
+                        <p class="text-muted">Explora los resultados de manera intuitiva con nuestras herramientas de visualización.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action -->
+<section class="py-5 bg-light">
+    <div class="container text-center py-5">
+        <h2 class="display-5 fw-bold mb-4">¿Listo para comenzar?</h2>
+        <p class="lead mb-4">Explora nuestra base de conocimiento y descubre información valiosa para tus proyectos.</p>
+        <a href="{{ url_for('main.buscador') }}" class="btn btn-primary btn-lg btn-custom">
+            <i class="bi bi-search me-2"></i>Ir al Buscador
+        </a>
+    </div>
+</section>
 {% endblock %} 

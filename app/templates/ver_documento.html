@@ -7,7 +7,7 @@
     <!-- Botón de regresar a la búsqueda -->
     <div class="mb-4">
         {% if last_search %}
-        <a href="{{ url_for('main.buscador') }}?query={{ last_search.query|urlencode }}&fecha_desde={{ last_search.fecha_desde }}&fecha_hasta={{ last_search.fecha_hasta }}" 
+        <a href="{{ url_for('main.buscador') }}?query={{ last_search.query|urlencode }}&fecha_desde={{ last_search.fecha_desde }}&fecha_hasta={{ last_search.fecha_hasta }}&from_doc=true" 
            class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Volver a los resultados
         </a>
@@ -93,7 +93,7 @@
     <!-- Botón de volver abajo -->
     <div class="mt-4 text-center">
         {% if last_search %}
-        <a href="{{ url_for('main.buscador') }}?query={{ last_search.query|urlencode }}&fecha_desde={{ last_search.fecha_desde }}&fecha_hasta={{ last_search.fecha_hasta }}" 
+        <a href="{{ url_for('main.buscador') }}?query={{ last_search.query|urlencode }}&fecha_desde={{ last_search.fecha_desde }}&fecha_hasta={{ last_search.fecha_hasta }}&from_doc=true" 
            class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Volver a los resultados
         </a>

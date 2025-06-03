@@ -18,5 +18,6 @@ class Config:
     ELASTICSEARCH_INDEX = os.getenv('ELASTICSEARCH_INDEX', 'ucentral_test')
     
     # Versión de la aplicación
-    VERSION_APP = "Versión 2.2 del Mayo 22 del 2025"
-    CREATOR_APP = "Nombre del creador/ruta github"
+    VERSION_APP = "0.1.0"
+    CREATOR_APP = "Cristhian Rodriguez"
+    APP_CREATOR = "Cristhian Rodriguez"  # Para el pie de página
