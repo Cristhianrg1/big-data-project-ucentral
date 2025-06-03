@@ -1,0 +1,114 @@
+{% extends "gestion/base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-upload me-2"></i>
+                        Importar Documentos
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Sube un archivo JSON para importar documentos a la colección <strong>{{ collection }}</strong>.
+                        El archivo puede contener un solo objeto JSON o un array de objetos.
+                    </div>
+                    
+                    <form method="POST" enctype="multipart/form-data" id="importForm">
+                        <div class="mb-3">
+                            <label for="jsonFile" class="form-label">Archivo JSON</label>
+                            <input class="form-control" type="file" id="jsonFile" name="file" accept=".json" required>
+                            <div class="form-text">
+                                Selecciona un archivo JSON válido.
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('database.ver_coleccion', database=database, collection=collection) }}" 
+                               class="btn btn-outline-secondary me-2">
+                                <i class="bi bi-x-lg me-1"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="importBtn">
+                                <i class="bi bi-upload me-1"></i> Importar
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="mt-4">
+                        <h5 class="mb-3">Formato esperado:</h5>
+                        <div class="card bg-light">
+                            <div class="card-body p-2">
+                                <pre class="mb-0 small">{
+  "_id": {
+    "$oid": "507f1f77bcf86cd799439011"
+  },
+  "nombre": "Ejemplo",
+  "activo": true,
+  "valor": 123.45,
+  "fecha": {
+    "$date": "2023-05-15T12:00:00Z"
+  },
+  "tags": ["tag1", "tag2"],
+  "createdAt": {
+    "$date": "2023-05-15T12:00:00Z"
+  },
+  "updatedAt": {
+    "$date": "2023-05-15T12:00:00Z"
+  }
+}</pre>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <p class="small text-muted mb-1">O un array de documentos:</p>
+                            <pre class="small text-muted mb-0">[{...}, {...}, ...]</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('importForm');
+        const fileInput = document.getElementById('jsonFile');
+        const importBtn = document.getElementById('importBtn');
+        
+        // Validar el archivo antes de enviar
+        form.addEventListener('submit', function(e) {
+            const file = fileInput.files[0];
+            if (!file) {
+                e.preventDefault();
+                return;
+            }
+            
+            // Validar extensión
+            if (!file.name.endsWith('.json')) {
+                e.preventDefault();
+                alert('Por favor, selecciona un archivo con extensión .json');
+                return;
+            }
+            
+            // Validar tamaño máximo (10MB)
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                e.preventDefault();
+                alert('El archivo es demasiado grande. El tamaño máximo permitido es 10MB.');
+                return;
+            }
+            
+            // Mostrar indicador de carga
+            importBtn.disabled = true;
+            importBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Importando...';
+        });
+    });
+</script>
+{% endblock %}
