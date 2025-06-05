@@ -78,9 +78,6 @@
                                     </span>
                                 </button>
                                 
-                                <button type="button" class="btn btn-outline-primary btn-lg" onclick="listarUsuarios()" id="listUsersBtn">
-                                    <i class="bi bi-people-fill me-2"></i>Listar Usuarios
-                                </button>
                             </div>
                             
                             <div class="text-center mt-4">
@@ -90,28 +87,7 @@
                     </div>
                 </div>
                 
-                <!-- Sección de usuarios (oculta por defecto) -->
-                <div id="ListadoUsuarios" class="card shadow-sm mt-4" style="display: none;">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">Listado de Usuarios</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Usuario</th>
-                                        <th>Rol</th>
-                                        <th>Fecha de Creación</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tablaUsuarios">
-                                    <!-- Los usuarios se cargarán aquí dinámicamente -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+
             </div>
         </div>
         
@@ -154,92 +130,6 @@
         submitSpinner.classList.remove('d-none');
         submitBtn.disabled = true;
         
-        // También deshabilitar el botón de listar usuarios si existe
-        const listUsersBtn = document.getElementById('listUsersBtn');
-        if (listUsersBtn) listUsersBtn.disabled = true;
     }
-    
-    // Función para listar usuarios
-    function listarUsuarios() {
-        try {
-            // Obtener referencias a los elementos
-            const loadingDiv = document.getElementById('div_cargando');
-            const listUsersBtn = document.getElementById('listUsersBtn');
-            const submitBtn = document.getElementById('submitBtn');
-            
-            // Mostrar el indicador de carga
-            loadingDiv.style.display = 'block';
-            
-            // Desplazarse suavemente a la sección de carga
-            loadingDiv.scrollIntoView({ behavior: 'smooth' });
-            
-            // Deshabilitar botones mientras se carga
-            listUsersBtn.disabled = true;
-            submitBtn.disabled = true;
-            
-            // Limpiar el contenido anterior
-            const tablaUsuarios = document.getElementById('tablaUsuarios');
-            tablaUsuarios.innerHTML = '';
-                
-            fetch('/listar-usuarios')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta del servidor');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    const contenedor = document.getElementById('ListadoUsuarios');
-                    
-                    // Limpiar la tabla
-                    tablaUsuarios.innerHTML = '';
-                    
-                    // Llenar la tabla con los datos
-                    if (data && Array.isArray(data)) {
-                        data.forEach(usuario => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${usuario.usuario || 'N/A'}</td>
-                                <td>${usuario.rol || 'Usuario'}</td>
-                                <td>${usuario.fechaCreacion || 'N/A'}</td>
-                            `;
-                            tablaUsuarios.appendChild(row);
-                        });
-                        
-                        // Mostrar la tabla
-                        contenedor.style.display = 'block';
-                    } else {
-                        throw new Error('Formato de datos no válido');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error al cargar usuarios:', error);
-                    alert('Error al cargar la lista de usuarios. Por favor, intente nuevamente.');
-                })
-                .finally(() => {
-                    // Siempre ejecutar esto, haya habido error o no
-                    loadingDiv.style.display = 'none';
-                    listUsersBtn.disabled = false;
-                    submitBtn.disabled = false;
-                    
-                    // Restaurar el texto del botón de envío si fue modificado
-                    const submitText = document.getElementById('submitText');
-                    if (submitText) {
-                        submitText.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Iniciar Sesión';
-                    }
-                    const submitSpinner = document.getElementById('submitSpinner');
-                    if (submitSpinner) {
-                        submitSpinner.classList.add('d-none');
-                    }
-                });
-        } catch (error) {
-            console.error('Error inesperado:', error);
-            alert('Ocurrió un error inesperado. Por favor, recargue la página.');
-            // Asegurarse de que los botones se reactiven incluso si hay un error en el try
-            document.getElementById('listUsersBtn').disabled = false;
-            document.getElementById('submitBtn').disabled = false;
-            document.getElementById('div_cargando').style.display = 'none';
-        }
-        }
     </script>
 {% endblock %} 
