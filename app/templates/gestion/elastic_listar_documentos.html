@@ -104,28 +104,42 @@
             const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
 
             window.eliminarDocumento = function(docId) {
+                console.log('Botón eliminar clickeado para documento ID:', docId);
                 documentToDelete = docId;
+                console.log('Modal de confirmación mostrado');
                 confirmModal.show();
             };
 
             $('#confirmDelete').click(function() {
+                console.log('Confirmación de eliminación para documento ID:', documentToDelete);
                 if (documentToDelete) {
+                    console.log('Enviando petición AJAX a /elastic-eliminar-documento');
                     $.ajax({
                         url: '/elastic-eliminar-documento',
                         method: 'POST',
                         data: {
                             doc_id: documentToDelete
                         },
-                        success: function(response) {
+                        success: function(response, status, xhr) {
+                            console.log('Respuesta recibida:', response);
+                            console.log('Estado de la respuesta:', status);
+                            console.log('Headers:', xhr.getAllResponseHeaders());
+                            
                             if (response.success) {
+                                console.log('Eliminación exitosa, removiendo fila de la tabla');
                                 table.row($(`button[onclick="eliminarDocumento('${documentToDelete}')"]`).closest('tr')).remove().draw();
                                 confirmModal.hide();
                             } else {
-                                alert('Error al eliminar el documento: ' + response.error);
+                                console.error('Error en la respuesta del servidor:', response.error);
+                                alert('Error al eliminar el documento: ' + (response.error || 'Error desconocido'));
                             }
                         },
-                        error: function() {
-                            alert('Error al eliminar el documento');
+                        error: function(xhr, status, error) {
+                            console.error('Error en la petición AJAX:');
+                            console.error('Status:', status);
+                            console.error('Error:', error);
+                            console.error('Respuesta del servidor:', xhr.responseText);
+                            alert('Error al conectar con el servidor. Por favor, revisa la consola para más detalles.');
                         }
                     });
                 }

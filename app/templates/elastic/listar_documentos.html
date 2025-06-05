@@ -35,37 +35,49 @@
                 </a>
             </div>
         {% else %}
-            <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                    <thead>
+            <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+                <table class="table table-sm table-hover" id="dataTable" width="100%" cellspacing="0" style="table-layout: fixed;">
+                    <colgroup>
+                        <col style="width: 15%;">
+                        <col style="width: 65%;">
+                        <col style="width: 20%;">
+                    </colgroup>
+                    <thead class="table-light">
                         <tr>
                             <th>ID</th>
                             <th>Contenido</th>
-                            <th>Acciones</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for doc in documents %}
                             <tr>
-                                <td class="text-nowrap">
-                                    <code>{{ doc._id }}</code>
+                                <td class="text-truncate" title="{{ doc._id }}">
+                                    <small class="text-muted">{{ doc._id|truncate(15, True, '...') }}</small>
                                 </td>
-                                <td>
-                                    <div style="max-height: 100px; overflow: hidden; text-overflow: ellipsis;">
-                                        <pre class="mb-0" style="white-space: pre-wrap;"><small>{{ doc._source|tojson(indent=2) }}</small></pre>
+                                <td class="small">
+                                    <div class="fw-bold">
+                                        {{ doc._source.titulo|default('(Sin título)') }}
                                     </div>
+                                    {% if doc._source.fecha_publicacion %}
+                                    <div class="text-muted small">
+                                        {{ doc._source.fecha_publicacion }}
+                                    </div>
+                                    {% endif %}
                                 </td>
-                                <td class="text-nowrap">
-                                    <a href="{{ url_for('elastic.ver_documento', doc_id=doc._id) }}" 
-                                       class="btn btn-sm btn-primary me-1" 
-                                       title="Ver detalles">
-                                        <i class="fas fa-eye me-1"></i>Ver
-                                    </a>
-                                    <button class="btn btn-sm btn-danger" 
-                                            onclick="return confirmarEliminacion('{{ doc._id }}')"
-                                            title="Eliminar documento">
-                                        <i class="fas fa-trash-alt me-1"></i>Eliminar
-                                    </button>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('elastic.ver_documento', doc_id=doc._id) }}" 
+                                           class="btn btn-outline-primary" 
+                                           title="Ver detalles">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button class="btn btn-outline-danger btn-eliminar" 
+                                                data-doc-id="{{ doc._id }}"
+                                                title="Eliminar documento">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -78,14 +90,14 @@
 
 <!-- Modal para ver documento -->
 <div class="modal fade" id="documentModal" tabindex="-1" aria-labelledby="documentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl" style="max-width: 90%;">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="documentModalLabel">Detalles del Documento</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
-                <pre id="documentContent" class="p-3 bg-light rounded" style="max-height: 60vh; overflow-y: auto;"></pre>
+                <pre id="documentContent" class="p-3 bg-light rounded" style="max-height: 70vh; overflow-y: auto;"></pre>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -105,22 +117,101 @@
 <script src="{{ url_for('static', filename='vendor/datatables/dataTables.bootstrap4.min.js') }}"></script>
 
 <script>
-// Inicializar DataTable
+// Función global para eliminar documentos
+function eliminarDocumento(button) {
+    const docId = button.getAttribute('data-doc-id');
+    
+    if (!confirm('¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.')) {
+        return false;
+    }
+    
+    // Mostrar indicador de carga en el botón
+    const originalHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Eliminando...';
+    
+    // Crear objeto con los datos a enviar
+    const data = new URLSearchParams();
+    data.append('doc_id', docId);
+    
+    // URL completa incluyendo el prefijo del blueprint
+    const deleteUrl = '/gestion/elastic/elastic-eliminar-documento';
+    console.log('URL de eliminación:', deleteUrl);
+    
+    // Realizar la petición
+    fetch(deleteUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+        },
+        body: data,
+        credentials: 'same-origin'
+    })
+    .then(async response => {
+        const data = await response.json().catch(() => ({}));
+        
+        if (!response.ok) {
+            const errorMsg = data.error || `Error en la respuesta del servidor: ${response.status} ${response.statusText}`;
+            throw new Error(errorMsg);
+        }
+        
+        return data;
+    })
+    .then(data => {
+        if (data && data.success) {
+            // Mostrar mensaje de éxito
+            alert('Documento eliminado correctamente');
+            // Recargar la página para ver los cambios
+            window.location.reload();
+        } else {
+            throw new Error(data.error || 'Error desconocido al eliminar el documento');
+        }
+    })
+    .catch(error => {
+        console.error('Error en la petición:', error);
+        alert('Error: ' + (error.message || 'No se pudo eliminar el documento'));
+        button.disabled = false;
+        button.innerHTML = originalHtml;
+    });
+    
+    return false;
+}
+
+// Inicializar DataTable con configuración mejorada
 $(document).ready(function() {
     $('#dataTable').DataTable({
-        "order": [[0, "asc"]], // Ordenar por ID por defecto
+        "order": [[0, "asc"]],
         "language": {
             "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json"
         },
         "columnDefs": [
-            { "orderable": false, "targets": [2] } // Deshabilitar ordenación en columna de acciones
-        ]
-    });
+            { "orderable": false, "targets": [2] },
+            { "className": "text-truncate", "targets": [0, 1] },
+            { "width": "15%", "targets": 0 },
+            { "width": "65%", "targets": 1 },
+            { "width": "20%", "targets": 2, "className": "text-center" }
+        ],
+        "responsive": true,
+        "autoWidth": false,
+        "pageLength": 25,
+        "dom": "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+               "<'row'<'col-sm-12'tr>>" +
+               "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+        "initComplete": function() {
+            // Asegurarse de que el contenedor de la tabla ocupe todo el ancho
+            $('.dataTables_wrapper').css('width', '100%');
+        }
 
     // Función para ver el documento completo
     window.verDocumento = function(docId) {
         fetch(`/gestion/elastic/documento/${docId}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al cargar el documento: ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     document.getElementById('documentContent').textContent = 
@@ -137,35 +228,8 @@ $(document).ready(function() {
             });
     };
 
-    // Función para confirmar la eliminación de un documento
-    window.confirmarEliminacion = function(docId) {
-        if (confirm('¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.')) {
-            fetch(`/elasticsearch/eliminar-documento/${docId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Recargar la página para ver los cambios
-                    window.location.reload();
-                } else {
-                    alert('Error al eliminar el documento: ' + (data.error || 'Error desconocido'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al intentar eliminar el documento');
-            });
-        }
-        return false;
-    };
-
     // Función para copiar el contenido del documento al portapapeles
-    window.copiarContenido = function() {
+    window.copiarContenido = function(event) {
         const contenido = document.getElementById('documentContent');
         const range = document.createRange();
         range.selectNode(contenido);
@@ -186,6 +250,19 @@ $(document).ready(function() {
             event.target.classList.add('btn-primary');
         }, 2000);
     };
+
+    // Manejador de clic para los botones de eliminar
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-eliminar') || e.target.closest('.btn-eliminar')) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const button = e.target.classList.contains('btn-eliminar') ? 
+                          e.target : e.target.closest('.btn-eliminar');
+            
+            eliminarDocumento(button);
+        }
+    });
 });
 </script>
 {% endblock %}

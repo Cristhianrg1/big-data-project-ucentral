@@ -1,10 +1,17 @@
 {% extends "elastic/base.html" %}
 
-{% block title %}Ver Documento - Elasticsearch - BigData-MiProyecto{% endblock %}
+{% block title %}{{ documento.titulo|default('Documento sin título') }} - Elasticsearch - BigData-MiProyecto{% endblock %}
 
 {% block elastic_content %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Documento #{{ doc_id }}</h1>
+    <h1 class="h3 mb-0 text-gray-800">
+        {% if documento.titulo %}
+            {{ documento.titulo }}
+            <small class="text-muted d-block mt-1">ID: {{ doc_id }}</small>
+        {% else %}
+            Documento #{{ doc_id }}
+        {% endif %}
+    </h1>
     <a href="{{ url_for('elastic.listar_documentos') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-2"></i>Volver al listado
     </a>

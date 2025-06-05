@@ -3,6 +3,7 @@ import os
 import zipfile
 import json
 import logging
+from datetime import datetime
 import tempfile
 import shutil
 from functools import wraps
@@ -186,9 +187,13 @@ def agregar_documentos():
                                     data = json.load(f)
                                     if isinstance(data, list):
                                         for doc in data:
+                                            if not doc.get('fecha_publicacion'):
+                                                doc['fecha_publicacion'] = datetime.now().strftime('%Y-%m-%d')
                                             es.index(index=index_name, document=doc)
                                             success_count += 1
                                     else:
+                                        if not data.get('fecha_publicacion'):
+                                            data['fecha_publicacion'] = datetime.now().strftime('%Y-%m-%d')
                                         es.index(index=index_name, document=data)
                                         success_count += 1
                             except Exception as e:
@@ -201,9 +206,13 @@ def agregar_documentos():
                         data = json.load(f)
                         if isinstance(data, list):
                             for doc in data:
+                                if not doc.get('fecha_publicacion'):
+                                    doc['fecha_publicacion'] = datetime.now().strftime('%Y-%m-%d')
                                 es.index(index=index_name, document=doc)
                                 success_count += 1
                         else:
+                            if not data.get('fecha_publicacion'):
+                                data['fecha_publicacion'] = datetime.now().strftime('%Y-%m-%d')
                             es.index(index=index_name, document=data)
                             success_count += 1
                 except Exception as e:
@@ -303,29 +312,75 @@ def ver_documento(doc_id):
         flash('Ocurrió un error al cargar el documento', 'error')
         return redirect(url_for('elastic.listar_documentos'))
 
-@elastic_bp.route('/eliminar-documento/<doc_id>', methods=['POST'])
+@elastic_bp.route('/elastic-eliminar-documento', methods=['POST'])
 @login_required
-def eliminar_documento(doc_id):
-    """Eliminar un documento de Elasticsearch"""
-    es = get_elasticsearch_client()
-    if not es:
-        return jsonify({'success': False, 'error': 'No se pudo conectar a Elasticsearch'}), 503
-    
+def eliminar_documento():
     try:
-        index_name = get_index_name()
-        response = es.delete(index=index_name, id=doc_id, ignore=[404])
+        logger.info('Solicitud de eliminación de documento recibida')
         
-        if 'result' in response and response['result'] == 'deleted':
-            return jsonify({'success': True})
-        else:
+        # Obtener datos del formulario
+        doc_id = request.form.get('doc_id')
+        logger.info(f'ID de documento recibido: {doc_id}')
+        
+        if not doc_id:
+            logger.warning('No se proporcionó ID de documento')
             return jsonify({
                 'success': False, 
-                'error': 'Documento no encontrado o error al eliminar'
-            }), 404
+                'error': 'ID de documento no proporcionado'
+            }), 400
+        
+        # Obtener cliente de Elasticsearch
+        logger.info('Obteniendo cliente de Elasticsearch...')
+        es = get_elasticsearch_client()
+        if not es:
+            logger.error('No se pudo conectar a Elasticsearch')
+            return jsonify({
+                'success': False, 
+                'error': 'No se pudo conectar al servidor de búsqueda'
+            }), 503
+        
+        # Obtener nombre del índice
+        index_name = get_index_name()
+        logger.info(f'Intentando eliminar documento {doc_id} del índice {index_name}...')
+        
+        # Intentar eliminar el documento
+        try:
+            response = es.delete(
+                index=index_name,
+                id=doc_id,
+                refresh=True  # Forzar actualización del índice
+            )
+            logger.info(f'Respuesta de Elasticsearch: {response}')
+            
+            if response.get('result') == 'deleted':
+                logger.info(f'Documento {doc_id} eliminado exitosamente')
+                return jsonify({
+                    'success': True,
+                    'message': 'Documento eliminado correctamente'
+                })
+            else:
+                error_msg = f'El documento {doc_id} no pudo ser eliminado. Respuesta: {response}'
+                logger.warning(error_msg)
+                return jsonify({
+                    'success': False,
+                    'error': 'No se pudo eliminar el documento',
+                    'details': str(response)
+                }), 400
+                
+        except Exception as es_error:
+            error_msg = f'Error de Elasticsearch al eliminar documento {doc_id}: {str(es_error)}'
+            logger.error(error_msg, exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': 'Error al procesar la solicitud',
+                'details': str(es_error)
+            }), 500
             
     except Exception as e:
-        logger.error(f'Error al eliminar documento {doc_id}: {str(e)}')
+        error_msg = f'Error inesperado al eliminar documento: {str(e)}'
+        logger.error(error_msg, exc_info=True)
         return jsonify({
-            'success': False, 
-            'error': f'Error al eliminar el documento: {str(e)}'
+            'success': False,
+            'error': 'Error inesperado al procesar la solicitud',
+            'details': str(e)
         }), 500
