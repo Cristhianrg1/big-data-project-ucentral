@@ -21,7 +21,7 @@ def login_required(f):
     return decorated_function
 
 @db_bp.route('/mongodb-manager')
-@db_bp.route('/mongodb-manager/<database>')
+@db_bp.route('/mongodb-manager/<path:database>')
 @login_required
 def gestion_proyecto(database=None):
     """Página principal de gestión de bases de datos"""
@@ -29,7 +29,8 @@ def gestion_proyecto(database=None):
         current_app.logger.info(f'Accediendo a gestion_proyecto con database={database}, args={request.args}')
         
         databases = services.get_databases()
-        selected_db = database or request.args.get('database', '')
+        # Priorizar el parámetro de consulta sobre el de la ruta
+        selected_db = request.args.get('database', database or '')
         
         current_app.logger.info(f'Bases de datos disponibles: {databases}')
         current_app.logger.info(f'Base de datos seleccionada: {selected_db}')

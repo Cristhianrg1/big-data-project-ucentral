@@ -154,12 +154,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Función para actualizar la URL sin recargar la página
     function updateURL(database) {
-        const url = new URL(window.location);
+        // Crear una nueva URL solo con la ruta base
+        const url = new URL(window.location.origin + '/mongodb-manager');
+        
+        // Si hay una base de datos, agregarla como parámetro
         if (database) {
             url.searchParams.set('database', database);
-        } else {
-            url.searchParams.delete('database');
         }
+        
+        // Actualizar la URL sin recargar la página
         window.history.pushState({}, '', url);
     }
 
@@ -230,10 +233,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (emptyMessage) emptyMessage.style.display = 'none';
 
         try {
+            // Actualizar la URL primero
+            updateURL(selectedDb);
+            
             // Realizar la petición AJAX
             const response = await fetch(`?database=${encodeURIComponent(selectedDb)}`, {
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
                 }
             });
             
@@ -244,8 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                // Actualizar la URL sin recargar la página
-                updateURL(selectedDb);
+                // La URL ya fue actualizada al inicio
                 
                 // Actualizar el título con la base de datos seleccionada
                 const dbTitle = document.querySelector('#collectionsSection h5 strong');

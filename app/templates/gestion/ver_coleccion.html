@@ -1,5 +1,29 @@
 {% extends "gestion/base.html" %}
 
+{% block head %}
+{{ super() }}
+<style>
+    .data-viewer {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    .preformatted-json {
+        white-space: pre-wrap;
+        margin: 0;
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+    .nested-table {
+        width: 100%;
+        font-size: 0.9em;
+    }
+    .nested-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -47,10 +71,10 @@
             </div>
             <div class="col-md-3 text-end">
                 <select class="form-select" id="perPageSelect">
-                    <option value="10">10 por página</option>
-                    <option value="25">25 por página</option>
-                    <option value="50">50 por página</option>
-                    <option value="100">100 por página</option>
+                    <option value="10" {% if request.args.get('per_page', '10') == '10' %}selected{% endif %}>10 por página</option>
+                    <option value="25" {% if request.args.get('per_page') == '25' %}selected{% endif %}>25 por página</option>
+                    <option value="50" {% if request.args.get('per_page') == '50' %}selected{% endif %}>50 por página</option>
+                    <option value="100" {% if request.args.get('per_page') == '100' %}selected{% endif %}>100 por página</option>
                 </select>
             </div>
         </div>
@@ -60,65 +84,204 @@
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 200px;">ID</th>
-                        <th>Documento</th>
-                        <th style="width: 150px;" class="text-end">Acciones</th>
+                        {% if documents and documents|length > 0 %}
+                            {# Obtener todas las claves excepto _id #}
+                            {% set doc = documents[0] %}
+                            {% set all_keys = [] %}
+                            
+                            {# Obtener todas las claves de todos los documentos #}
+                            {% for d in documents %}
+                                {% for key in d.keys() %}
+                                    {% if key != '_id' and key not in all_keys %}
+                                        {% set _ = all_keys.append(key) %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            
+                            {# Encontrar la clave con más contenido (lista o diccionario) #}
+                            {% set nested_key = none %}
+                            {% set max_length = 0 %}
+                            
+                            {% for key in all_keys %}
+                                {% if key in doc and doc[key] is defined %}
+                                    {% if doc[key] is iterable and doc[key] is not string %}
+                                        {% set current_length = doc[key]|length if doc[key] is iterable and doc[key] is not mapping else 1 %}
+                                        {% if current_length > max_length %}
+                                            {% set max_length = current_length %}
+                                            {% set nested_key = key %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {# Mostrar columnas para las claves que no son la anidada #}
+                            {% for key in all_keys %}
+                                {% if key != nested_key %}
+                                    <th>{{ key|title|replace('_', ' ') }}</th>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {# Mostrar columna para la clave anidada si existe #}
+                            {% if nested_key %}
+                                <th>{{ nested_key|title|replace('_', ' ') }}</th>
+                            {% endif %}
+                            
+                            <th class="text-end">Acciones</th>
+                        {% else %}
+                            <th>No hay documentos para mostrar</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody id="documentsTableBody">
                     {% for doc in documents %}
-                    <tr data-doc-id="{{ doc._id }}">
-                        <td class="text-nowrap text-muted small">
-                            <div class="text-truncate" style="max-width: 180px;" title="{{ doc._id }}">
-                                {{ doc._id }}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="document-preview" style="max-height: 80px; overflow: hidden;">
-                                <pre class="mb-0 small text-muted">{{ doc|tojson(indent=2) }}</pre>
-                            </div>
-                            <a href="#" class="toggle-document" data-doc-id="{{ doc._id }}">
-                                <i class="bi bi-arrows-expand"></i> Mostrar todo
-                            </a>
-                        </td>
-                        <td class="text-nowrap text-end">
-                            <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('database.editar_documento', database=database, collection=collection, document_id=doc._id) }}"
-                                   class="btn btn-outline-primary"
-                                   title="Editar documento">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <button class="btn btn-outline-secondary view-document"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#documentModal"
-                                        data-doc='{{ doc|tojson }}'
-                                        title="Vista previa">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <!-- MODIFICADO: Sin data-bs-toggle ni data-bs-target -->
-                                <button class="btn btn-outline-danger delete-document"
-                                        data-doc-id="{{ doc._id }}"
-                                        data-db="{{ database }}"
-                                        data-collection="{{ collection }}"
-                                        data-doc='{{ doc|tojson }}'
-                                        title="Eliminar documento">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                        <tr data-doc-id="{{ doc._id }}">
+                            {# Mostrar valores para las claves que no son la anidada #}
+                            {% for key in all_keys %}
+                                {% if key != nested_key %}
+                                    <td>
+                                        {% if key in doc %}
+                                            {% if doc[key] is string %}
+                                                {{ doc[key]|truncate(50) }}
+                                            {% elif doc[key] is number %}
+                                                {{ "%.2f"|format(doc[key]|float) }}
+                                            {% elif doc[key] is mapping or doc[key] is iterable %}
+                                                <button class="btn btn-sm btn-outline-info view-nested" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#nestedContentModal"
+                                                        data-title="{{ key|title|replace('_', ' ') }}"
+                                                        data-content='{{ doc[key]|tojson }}'>
+                                                    <i class="bi bi-eye"></i> Ver
+                                                </button>
+                                            {% else %}
+                                                {{ doc[key]|tojson|truncate(50) }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {# Mostrar tabla anidada para la clave con más contenido #}
+                            {% if nested_key and nested_key in doc %}
+                                <td>
+                                    {% if doc[nested_key] is iterable and doc[nested_key] is not string %}
+                                        <div style="max-height: 200px; overflow-y: auto;">
+                                            {% if doc[nested_key] is mapping %}
+                                                {# Si es un diccionario, mostrarlo como tabla de una fila #}
+                                                <table class="table table-sm table-bordered">
+                                                    <tbody>
+                                                        <tr>
+                                                            {% for key, value in doc[nested_key].items() %}
+                                                                <th>{{ key|title }}</th>
+                                                            {% endfor %}
+                                                        </tr>
+                                                        <tr>
+                                                            {% for value in doc[nested_key].values() %}
+                                                                <td>
+                                                                    {% if value is string %}
+                                                                        {{ value|truncate(30) }}
+                                                                    {% elif value is number %}
+                                                                        {{ "%.2f"|format(value|float) }}
+                                                                    {% else %}
+                                                                        {{ value|tojson|truncate(30) }}
+                                                                    {% endif %}
+                                                                </td>
+                                                            {% endfor %}
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            {% else %}
+                                                {# Si es una lista, mostrarla como tabla con múltiples filas #}
+                                                <table class="table table-sm table-bordered">
+                                                    {% if doc[nested_key]|length > 0 %}
+                                                        <thead>
+                                                            <tr>
+                                                                {% if doc[nested_key][0] is mapping %}
+                                                                    {% for key in doc[nested_key][0].keys() %}
+                                                                        <th>{{ key|title }}</th>
+                                                                    {% endfor %}
+                                                                {% else %}
+                                                                    <th>Ítem</th>
+                                                                {% endif %}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for item in doc[nested_key] %}
+                                                                <tr>
+                                                                    {% if item is mapping %}
+                                                                        {% for value in item.values() %}
+                                                                            <td>
+                                                                                {% if value is string %}
+                                                                                    {{ value|truncate(30) }}
+                                                                                {% elif value is number %}
+                                                                                    {{ "%.2f"|format(value|float) }}
+                                                                                {% else %}
+                                                                                    {{ value|tojson|truncate(30) }}
+                                                                                {% endif %}
+                                                                            </td>
+                                                                        {% endfor %}
+                                                                    {% else %}
+                                                                        <td>
+                                                                            {% if item is string %}
+                                                                                {{ item|truncate(50) }}
+                                                                            {% elif item is number %}
+                                                                                {{ "%.2f"|format(item|float) }}
+                                                                            {% else %}
+                                                                                {{ item|tojson|truncate(50) }}
+                                                                            {% endif %}
+                                                                        </td>
+                                                                    {% endif %}
+                                                                </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    {% else %}
+                                                        <tr><td class="text-center text-muted">Vacío</td></tr>
+                                                    {% endif %}
+                                                </table>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        {{ doc[nested_key]|tojson|truncate(50) }}
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                            
+                            <td class="text-nowrap text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('database.editar_documento', database=database, collection=collection, document_id=doc._id) }}"
+                                       class="btn btn-outline-primary"
+                                       title="Editar documento">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button class="btn btn-outline-secondary view-document"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#documentModal"
+                                            data-doc='{{ doc|tojson }}'
+                                            title="Vista previa">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger delete-document"
+                                            data-doc-id="{{ doc._id }}"
+                                            data-db="{{ database }}"
+                                            data-collection="{{ collection }}"
+                                            data-doc='{{ doc|tojson }}'
+                                            title="Eliminar documento">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="3" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                No se encontraron documentos en esta colección.
-                            </div>
-                            <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#newDocumentModal">
-                                <i class="bi bi-plus-lg me-1"></i> Crear primer documento
-                            </button>
-                        </td>
-                    </tr>
+                        <tr>
+                            <td colspan="100%" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                    No se encontraron documentos en esta colección.
+                                </div>
+                                <a href="{{ url_for('database.nuevo_documento', database=database, collection=collection) }}" class="btn btn-primary mt-2">
+                                    <i class="bi bi-plus-lg me-1"></i> Crear primer documento
+                                </a>
+                            </td>
+                        </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -154,6 +317,47 @@
             </ul>
         </nav>
         {% endif %}
+    </div>
+</div>
+
+<!-- Nested Content Modal -->
+<div class="modal fade" id="nestedContentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">
+                    <i class="bi bi-table me-2"></i>
+                    <span id="modalTitle">Detalles del documento</span>
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" id="copyJsonBtn" title="Copiar JSON">
+                        <i class="bi bi-clipboard me-1"></i> Copiar JSON
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <div class="data-viewer">
+                    <div id="dataContent" class="p-3">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <!-- Los encabezados se generarán dinámicamente -->
+                                </thead>
+                                <tbody id="dataTableBody">
+                                    <!-- Los datos se insertarán aquí -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i> Cerrar
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -217,6 +421,206 @@
 
 {% block scripts %}
 {{ super() }}
+<script>
+// Función para generar los encabezados de la tabla dinámicamente
+function generateTableHeaders(data) {
+    if (!data || typeof data !== 'object') return '';
+    
+    // Función recursiva para obtener todas las claves
+    const getAllKeys = (obj, prefix = '') => {
+        let keys = [];
+        Object.keys(obj).forEach(key => {
+            const fullKey = prefix ? `${prefix}.${key}` : key;
+            if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+                keys = [...keys, ...getAllKeys(obj[key], fullKey)];
+            } else {
+                keys.push(fullKey);
+            }
+        });
+        return keys;
+    };
+    
+    // Obtener todas las claves únicas
+    const allKeys = [...new Set(getAllKeys(data))];
+    
+    // Generar los encabezados
+    return allKeys.map(key => `<th class="text-nowrap">${key}</th>`).join('\n');
+}
+
+// Función para generar las filas de la tabla
+function generateTableRows(data) {
+    if (!data || typeof data !== 'object') return '';
+    
+    // Función para obtener un valor anidado usando notación de puntos
+    const getNestedValue = (obj, path) => {
+        return path.split('.').reduce((o, p) => (o && o[p] !== undefined) ? o[p] : null, obj);
+    };
+    
+    // Obtener todas las claves
+    const allKeys = [...new Set(getAllKeys(data))];
+    
+    // Función recursiva para obtener todas las claves
+    function getAllKeys(obj, prefix = '') {
+        let keys = [];
+        Object.keys(obj).forEach(key => {
+            const fullKey = prefix ? `${prefix}.${key}` : key;
+            if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+                keys = [...keys, ...getAllKeys(obj[key], fullKey)];
+            } else {
+                keys.push(fullKey);
+            }
+        });
+        return keys;
+    }
+    
+    // Generar las celdas para cada valor
+    let cells = '';
+    allKeys.forEach(key => {
+        let value = getNestedValue(data, key);
+        let displayValue = value;
+        
+        if (value === null || value === undefined) {
+            displayValue = '<span class="text-muted">null</span>';
+        } else if (typeof value === 'boolean') {
+            displayValue = value ? 'true' : 'false';
+        } else if (Array.isArray(value)) {
+            displayValue = `<span class="text-muted">[${value.length} items]</span>`;
+        } else if (typeof value === 'object') {
+            displayValue = '<span class="text-muted">{...}</span>';
+        } else if (typeof value === 'string') {
+            // Acortar cadenas largas
+            if (value.length > 50) {
+                displayValue = `"${value.substring(0, 50)}..."`;
+            } else {
+                displayValue = `"${value}"`;
+            }
+        }
+        
+        cells += `<td>${displayValue}</td>`;
+    });
+    
+    return cells;
+}
+
+// Inicializar el modal para mostrar contenido anidado
+const nestedContentModal = document.getElementById('nestedContentModal');
+if (nestedContentModal) {
+    nestedContentModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const title = button.getAttribute('data-title') || 'Detalles';
+        let content;
+        
+        try {
+            content = JSON.parse(button.getAttribute('data-content'));
+        } catch (e) {
+            content = button.getAttribute('data-content');
+        }
+        
+        const modalTitle = document.getElementById('modalTitle');
+        const dataTable = document.querySelector('#nestedContentModal .table');
+        const dataTableHead = dataTable.querySelector('thead');
+        const dataTableBody = dataTable.querySelector('tbody');
+        
+        // Establecer el título del modal
+        modalTitle.textContent = title;
+        
+        // Limpiar la tabla
+        dataTableHead.innerHTML = '';
+        dataTableBody.innerHTML = '';
+        
+        // Renderizar el contenido
+        if (content && typeof content === 'object') {
+            // Asegurarse de que content sea un array
+            const dataArray = Array.isArray(content) ? content : [content];
+            
+            // Generar encabezados basados en todas las claves posibles
+            const allKeys = [];
+            dataArray.forEach(item => {
+                const keys = [];
+                const getKeys = (obj, prefix = '') => {
+                    Object.keys(obj).forEach(key => {
+                        const fullKey = prefix ? `${prefix}.${key}` : key;
+                        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+                            getKeys(obj[key], fullKey);
+                        } else {
+                            keys.push(fullKey);
+                        }
+                    });
+                    return keys;
+                };
+                allKeys.push(...getKeys(item));
+            });
+            
+            const uniqueKeys = [...new Set(allKeys)];
+            
+            // Generar encabezados
+            const headers = uniqueKeys.map(key => `<th class="text-nowrap">${key}</th>`).join('');
+            dataTableHead.innerHTML = `<tr>${headers}</tr>`;
+            
+            // Generar filas
+            dataArray.forEach(item => {
+                const row = document.createElement('tr');
+                
+                uniqueKeys.forEach(key => {
+                    const cell = document.createElement('td');
+                    const value = key.split('.').reduce((o, k) => (o && o[k] !== undefined) ? o[k] : null, item);
+                    
+                    if (value === null || value === undefined) {
+                        cell.innerHTML = '<span class="text-muted">null</span>';
+                    } else if (typeof value === 'boolean') {
+                        cell.textContent = value ? 'true' : 'false';
+                    } else if (Array.isArray(value)) {
+                        cell.innerHTML = `<span class="text-muted">[${value.length} items]</span>`;
+                    } else if (typeof value === 'object') {
+                        cell.innerHTML = '<span class="text-muted">{...}</span>';
+                    } else if (typeof value === 'string') {
+                        // Acortar cadenas largas
+                        if (value.length > 50) {
+                            cell.textContent = `"${value.substring(0, 50)}..."`;
+                        } else {
+                            cell.textContent = `"${value}"`;
+                        }
+                    } else {
+                        cell.textContent = value;
+                    }
+                    
+                    row.appendChild(cell);
+                });
+                
+                dataTableBody.appendChild(row);
+            });
+        } else {
+            dataTableBody.innerHTML = `
+                <tr>
+                    <td colspan="${Math.max(1, Object.keys(content || {}).length)}" class="text-center py-4 text-muted">
+                        No hay datos para mostrar
+                    </td>
+                </tr>
+            `;
+        }
+        
+        // Configurar botón de copiar
+        const copyBtn = document.getElementById('copyJsonBtn');
+        copyBtn.onclick = function() {
+            const textToCopy = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+            navigator.clipboard.writeText(textToCopy);
+            
+            const originalHtml = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<i class="bi bi-check2 me-1"></i> ¡Copiado!';
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = originalHtml;
+            }, 2000);
+        };
+    });
+}
+
+// Inicializar tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Toggle document preview
