@@ -1,0 +1,120 @@
+{% extends "base_public.html" %}
+
+{% block title %}{{ documento.titulo }} - Documento - BigData-MiProyecto{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Botón de regresar a la búsqueda -->
+    <div class="mb-4">
+        {% if last_search %}
+        <a href="{{ url_for('main.buscador') }}?query={{ last_search.query|urlencode }}&fecha_desde={{ last_search.fecha_desde }}&fecha_hasta={{ last_search.fecha_hasta }}&from_doc=true" 
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a los resultados
+        </a>
+        {% else %}
+        <a href="{{ url_for('main.buscador') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al buscador
+        </a>
+        {% endif %}
+    </div>
+    
+    <!-- Tarjeta del documento -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h4 mb-0">{{ documento.titulo }}</h2>
+        </div>
+        <div class="card-body">
+            <!-- Metadatos del documento -->
+            <div class="mb-4">
+                <div class="d-flex flex-wrap gap-3 mb-2">
+                    <div>
+                        <i class="bi bi-person-fill text-muted"></i>
+                        <span class="text-muted">Autor:</span>
+                        <strong>{{ documento.autor }}</strong>
+                    </div>
+                    <div>
+                        <i class="bi bi-calendar3 text-muted"></i>
+                        <span class="text-muted">Publicado:</span>
+                        <strong>{{ documento.fecha_publicacion }}</strong>
+                    </div>
+                    {% if documento.etiquetas %}
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-tags text-muted me-1"></i>
+                        <div>
+                            {% for etiqueta in documento.etiquetas %}
+                                <span class="badge bg-secondary me-1">{{ etiqueta }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Contenido del documento -->
+            <div class="document-content">
+                {% if documento.contenido is string %}
+                    {{ documento.contenido|replace('\n', '<br>')|safe }}
+                {% else %}
+                    <pre>{{ documento.contenido|tojson(indent=2) }}</pre>
+                {% endif %}
+            </div>
+            
+            <!-- Metadatos adicionales -->
+            {% if documento.metadatos %}
+            <div class="mt-4 pt-3 border-top">
+                <h5 class="h6 text-muted mb-3">Metadatos adicionales</h5>
+                <div class="row">
+                    {% for key, value in documento.metadatos.items() %}
+                    <div class="col-md-6 mb-2">
+                        <strong>{{ key|title }}:</strong>
+                        <span class="ms-1">
+                            {% if value is string %}
+                                {{ value }}
+                            {% else %}
+                                {{ value|tojson }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer text-muted">
+            <div class="d-flex justify-content-between align-items-center">
+                <small>ID del documento: {{ doc_id }}</small>
+                <a href="#top" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-up"></i> Subir
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botón de volver abajo -->
+    <div class="mt-4 text-center">
+        {% if last_search %}
+        <a href="{{ url_for('main.buscador') }}?query={{ last_search.query|urlencode }}&fecha_desde={{ last_search.fecha_desde }}&fecha_hasta={{ last_search.fecha_hasta }}&from_doc=true" 
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a los resultados
+        </a>
+        {% else %}
+        <a href="{{ url_for('main.buscador') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al buscador
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.document-content {
+    line-height: 1.8;
+    font-size: 1.05rem;
+}
+.document-content pre {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    overflow-x: auto;
+}
+</style>
+{% endblock %}

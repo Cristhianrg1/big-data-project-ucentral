@@ -1,0 +1,778 @@
+{% extends "base_public.html" %}
+
+{% block title %}Buscador - BigData Pro{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+<style>
+    .search-hero {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0.5rem;
+    }
+    
+    .search-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 0.5rem;
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        margin-top: -3rem;
+        position: relative;
+        z-index: 10;
+    }
+    
+    [data-bs-theme="dark"] .search-card {
+        background: var(--bs-dark-bg-subtle);
+    }
+    
+    .result-count {
+        color: var(--bs-gray-600);
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .search-result {
+        border-left: 3px solid var(--primary-color);
+        transition: all 0.3s ease;
+        margin-bottom: 1.5rem;
+        background: var(--bs-white);
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    
+    [data-bs-theme="dark"] .search-result {
+        background: var(--bs-dark-bg-subtle);
+    }
+    
+    .search-result:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    }
+    
+    .search-result .card-body {
+        padding: 1.5rem;
+    }
+    
+    .search-result h5 a {
+        color: var(--bs-heading-color);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .search-result h5 a:hover {
+        color: var(--primary-color);
+    }
+    
+    .search-meta {
+        display: flex;
+        gap: 1rem;
+        color: var(--bs-gray-600);
+        font-size: 0.9rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .search-snippet {
+        color: var(--bs-body-color);
+        margin: 0.75rem 0;
+    }
+    
+    .badge-tag {
+        background-color: var(--bs-primary-bg-subtle);
+        color: var(--bs-primary-text-emphasis);
+        font-weight: 500;
+        padding: 0.35em 0.65em;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .highlight {
+        background-color: rgba(255, 235, 59, 0.3);
+        padding: 0.1em 0.2em;
+        border-radius: 0.2em;
+        font-weight: 500;
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: 3rem;
+        color: var(--bs-gray-600);
+    }
+    
+    .no-results i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--bs-gray-400);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Toast para errores de validación -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="dateErrorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                La fecha "desde" no puede ser mayor que la fecha "hasta".
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Hero Section -->
+<section class="search-hero rounded-3 mb-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h1 class="display-5 fw-bold mb-3 text-white">Buscar en la base de conocimiento</h1>
+                <p class="lead mb-0 text-white">Encuentra documentos, artículos y recursos relevantes en nuestra colección</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+    {% if not elasticsearch_available %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div>
+                <h5 class="alert-heading">Servicio de búsqueda no disponible</h5>
+                <p class="mb-0">El servicio de búsqueda no está disponible en este momento. Estamos trabajando para solucionar el problema.</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+    {% endif %}
+
+    <div {% if not elasticsearch_available %}style="display: none;"{% endif %}>
+        <!-- Search Form Card -->
+        <div class="row justify-content-center mb-5">
+            <div class="col-lg-10">
+                <div class="search-card shadow">
+                    <form id="searchForm" method="POST" action="{{ url_for('main.buscador') }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="query" class="form-label fw-semibold">¿Qué estás buscando?</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0">
+                                        <i class="bi bi-search text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="query" name="query" 
+                                           value="{{ query }}" placeholder="Ingrese palabras clave, frases o consultas...">
+                                </div>
+                                <div class="form-text">
+                                    <small>Busca en títulos, contenido y autores. Usa comillas para frases exactas.</small>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <label for="fecha_desde" class="form-label fw-semibold">Fecha desde</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">
+                                        <i class="bi bi-calendar3 text-muted"></i>
+                                    </span>
+                                    <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" 
+                                           value="{{ fecha_desde }}">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <label for="fecha_hasta" class="form-label fw-semibold">Fecha hasta</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">
+                                        <i class="bi bi-calendar3 text-muted"></i>
+                                    </span>
+                                    <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta"
+                                           value="{{ fecha_hasta }}">
+                                </div>
+                            </div>
+                            
+                            <!-- Filtros avanzados (colapsable) -->
+                            <div class="col-12">
+                                <a class="d-inline-flex align-items-center text-decoration-none" data-bs-toggle="collapse" href="#filtrosAvanzados" role="button" aria-expanded="false" aria-controls="filtrosAvanzados">
+                                    <i class="bi bi-funnel me-1"></i> Filtros avanzados
+                                    <i class="bi bi-chevron-down ms-1 small"></i>
+                                </a>
+                            </div>
+                            
+                            <div class="collapse mt-2" id="filtrosAvanzados">
+                                <div class="card card-body bg-light">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="tipo_documento" class="form-label">Tipo de documento</label>
+                                            <select class="form-select select2-tags" id="tipo_documento" name="tipo_documento" multiple>
+                                                <option value="articulo">Artículo</option>
+                                                <option value="informe">Informe</option>
+                                                <option value="presentacion">Presentación</option>
+                                                <option value="otro">Otro</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="categoria" class="form-label">Categoría</label>
+                                            <select class="form-select select2-tags" id="categoria" name="categoria" multiple>
+                                                <option value="tecnologia">Tecnología</option>
+                                                <option value="ciencia">Ciencia</option>
+                                                <option value="educacion">Educación</option>
+                                                <option value="negocios">Negocios</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="ordenar_por" class="form-label">Ordenar por</label>
+                                            <select class="form-select" id="ordenar_por" name="ordenar_por">
+                                                <option value="relevancia" selected>Relevancia</option>
+                                                <option value="fecha_desc">Fecha (más reciente primero)</option>
+                                                <option value="fecha_asc">Fecha (más antigua primero)</option>
+                                                <option value="titulo_asc">Título (A-Z)</option>
+                                                <option value="titulo_desc">Título (Z-A)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-12 mt-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="limpiarFormulario()">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Limpiar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary px-4">
+                                        <i class="bi bi-search me-2"></i> Buscar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {% if error_message %}
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-10">
+                <div class="alert alert-danger" role="alert">
+                    {{ error_message }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if resultados %}
+        <div class="row">
+            <div class="col-lg-10 mx-auto">
+                <!-- Results Header -->
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+                    <div class="mb-3 mb-md-0">
+                        <h2 class="h4 mb-1">
+                            Resultados de búsqueda
+                            {% if query %}
+                                <span class="text-muted fw-normal">para "{{ query }}"</span>
+                            {% endif %}
+                        </h2>
+                        <p class="text-muted mb-0">{{ resultados.hits.total.value }} documentos encontrados</p>
+                    </div>
+                    
+                    <div class="d-flex align-items-center">
+                        <div class="dropdown me-2">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-sort-down-alt me-1"></i> Ordenar por
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sortDropdown">
+                                <li><a class="dropdown-item active" href="#">Relevancia</a></li>
+                                <li><a class="dropdown-item" href="#">Fecha (más reciente)</a></li>
+                                <li><a class="dropdown-item" href="#">Fecha (más antigua)</a></li>
+                                <li><a class="dropdown-item" href="#">Título (A-Z)</a></li>
+                                <li><a class="dropdown-item" href="#">Título (Z-A)</a></li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false" aria-controls="filtersCollapse">
+                            <i class="bi bi-funnel me-1"></i> Filtros
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Filters -->
+                {% if query or fecha_desde or fecha_hasta %}
+                <div class="alert alert-light border mb-4">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="text-muted small">Filtros activos:</span>
+                        
+                        {% if query %}
+                        <span class="badge bg-light text-dark border d-flex align-items-center">
+                            <i class="bi bi-search me-1"></i> "{{ query }}"
+                            <a href="#" class="ms-2 text-decoration-none" onclick="removeFilter('query')">
+                                <i class="bi bi-x-lg text-muted"></i>
+                            </a>
+                        </span>
+                        {% endif %}
+                        
+                        {% if fecha_desde %}
+                        <span class="badge bg-light text-dark border d-flex align-items-center">
+                            <i class="bi bi-calendar3 me-1"></i> Desde: {{ fecha_desde }}
+                            <a href="#" class="ms-2 text-decoration-none" onclick="removeDateFilter('fecha_desde')">
+                                <i class="bi bi-x-lg text-muted"></i>
+                            </a>
+                        </span>
+                        {% endif %}
+                        
+                        {% if fecha_hasta %}
+                        <span class="badge bg-light text-dark border d-flex align-items-center">
+                            <i class="bi bi-calendar3 me-1"></i> Hasta: {{ fecha_hasta }}
+                            <a href="#" class="ms-2 text-decoration-none" onclick="removeDateFilter('fecha_hasta')">
+                                <i class="bi bi-x-lg text-muted"></i>
+                            </a>
+                        </span>
+                        {% endif %}
+                        
+                        <button class="btn btn-sm btn-link text-decoration-none ms-auto" onclick="limpiarFormulario()">
+                            <i class="bi bi-x-circle me-1"></i> Limpiar todo
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Results List -->
+                <div class="search-results">
+                    {% for hit in resultados.hits.hits %}
+                    <div class="card border-0 shadow-sm mb-3 hover-shadow transition-all" id="doc-{{ hit._id }}"
+                         onclick="window.location='{{ url_for('main.ver_documento', document_id=hit._id) }}'" style="cursor: pointer;">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <h5 class="card-title mb-0 text-primary">
+                                            {% if hit.highlight and hit.highlight.titulo %}
+                                                {{ hit.highlight.titulo[0]|safe }}
+                                            {% else %}
+                                                {{ hit._source.titulo }}
+                                            {% endif %}
+                                        </h5>
+                                        <span class="badge bg-light text-muted border ms-2">
+                                            <i class="bi bi-file-earmark-text me-1"></i>
+                                            {{ hit._source.tipo_documento|default('Documento', true) }}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="mb-2 text-muted small">
+                                        <span class="me-3">
+                                            <i class="bi bi-person me-1"></i> {{ hit._source.autor|default('Autor desconocido', true) }}
+                                        </span>
+                                        <span>
+                                            <i class="bi bi-calendar3 me-1"></i> 
+                                            {{ hit._source.fecha_publicacion }}
+                                        </span>
+                                        {% if hit._score %}
+                                        <span class="ms-3">
+                                            <i class="bi bi-star-fill text-warning"></i> 
+                                            <span class="text-dark fw-medium">{{ "%.1f"|format(hit._score) }}</span>
+                                            <span class="text-muted small">/ 10</span>
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <p class="card-text text-muted mb-2">
+                                        {% if hit.highlight and hit.highlight.contenido %}
+                                            {% for fragment in hit.highlight.contenido %}
+                                                {{ fragment|safe }}
+                                            {% endfor %}
+                                        {% else %}
+                                            {{ hit._source.contenido|truncate(300) }}
+                                        {% endif %}
+                                    </p>
+                                    
+                                    {% if hit._source.etiquetas %}
+                                    <div class="mt-2">
+                                        {% for etiqueta in hit._source.etiquetas[:5] %}
+                                        <span class="badge bg-light text-muted border me-1 mb-1">
+                                            <i class="bi bi-tag"></i> {{ etiqueta }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="ms-3 text-end">
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill" 
+                                            onclick="event.stopPropagation(); window.open('{{ url_for('main.ver_documento', document_id=hit._id) }}', '_blank');">
+                                        Ver documento <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% set total_pages = (resultados.hits.total.value / 10)|round(0, 'ceil')|int %}
+                {% if total_pages > 1 %}
+                <nav aria-label="Navegación de resultados" class="mt-5">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item {% if pagina_actual == 1 %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.buscador', pagina=pagina_actual-1, **request.args) }}" 
+                               aria-label="Anterior">
+                                <span aria-hidden="true">&laquo; Anterior</span>
+                            </a>
+                        </li>
+                        
+                        {% if pagina_actual > 3 %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.buscador', pagina=1, **request.args) }}">1</a>
+                            </li>
+                            {% if pagina_actual > 4 %}
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% endif %}
+                        {% endif %}
+                        
+                        {% for p in range([1, pagina_actual-2]|max, [total_pages+1, pagina_actual+3]|min) %}
+                            <li class="page-item {% if p == pagina_actual %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('main.buscador', pagina=p, **request.args) }}">
+                                    {{ p }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                        
+                        {% if pagina_actual < total_pages - 2 %}
+                            {% if pagina_actual < total_pages - 3 %}
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% endif %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.buscador', pagina=total_pages, **request.args) }}">
+                                    {{ total_pages }}
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        <li class="page-item {% if pagina_actual == total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.buscador', pagina=pagina_actual+1, **request.args) }}" 
+                               aria-label="Siguiente">
+                                <span aria-hidden="true">Siguiente &raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% elif query %}
+        <!-- No Results State -->
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center py-5 my-5">
+                <div class="mb-4">
+                    <i class="bi bi-search display-1 text-muted opacity-25"></i>
+                </div>
+                <h3 class="h4 text-muted mb-3">No se encontraron resultados</h3>
+                <p class="text-muted mb-4">
+                    No hay documentos que coincidan con tu búsqueda "{{ query }}".
+                    <br>Prueba con términos diferentes o ajusta los filtros.
+                </p>
+                <div class="d-flex justify-content-center gap-2">
+                    <button class="btn btn-outline-primary" onclick="limpiarFormulario()">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>Limpiar búsqueda
+                    </button>
+                    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#filtrosAvanzados">
+                        <i class="bi bi-funnel me-2"></i>Ver filtros avanzados
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </pre>
+    </div>
+{% endblock content %}
+
+{% block extra_js %}
+{{ super() }}
+{% if elasticsearch_available %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+{% endif %}
+
+<script>
+// Función para establecer fechas por defecto
+function setDefaultDate() {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Establecer la fecha actual como máximo para ambos campos
+    document.getElementById('fecha_desde').max = today;
+    document.getElementById('fecha_hasta').max = today;
+    
+    // Si no hay valor en fecha_hasta, establecer la fecha actual
+    const fechaHasta = document.getElementById('fecha_hasta');
+    if (!fechaHasta.value) {
+        fechaHasta.value = today;
+    }
+    
+    // Si no hay valor en fecha_desde, establecer el primer día del año actual
+    const fechaDesde = document.getElementById('fecha_desde');
+    if (!fechaDesde.value) {
+        const defaultDate = new Date();
+        defaultDate.setMonth(0, 1); // 1 de enero del año actual
+        fechaDesde.value = defaultDate.toISOString().split('T')[0];
+    }
+    
+    // Validar que la fecha desde no sea mayor a la fecha hasta
+    if (fechaDesde.value > fechaHasta.value) {
+        fechaHasta.value = fechaDesde.value;
+    }
+    
+    // Añadir validación en tiempo real
+    fechaDesde.addEventListener('change', function() {
+        if (this.value > fechaHasta.value) {
+            fechaHasta.value = this.value;
+        }
+        // Actualizar la URL con los parámetros actuales
+        updateURLWithParams();
+    });
+    
+    fechaHasta.addEventListener('change', function() {
+        if (this.value < fechaDesde.value) {
+            fechaDesde.value = this.value;
+        }
+        // Actualizar la URL con los parámetros actuales
+        updateURLWithParams();
+    });
+}
+
+// Función para actualizar la URL con los parámetros actuales
+function updateURLWithParams() {
+    const form = document.getElementById('searchForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+    
+    // Agregar solo los campos con valor
+    for (const [key, value] of formData.entries()) {
+        if (value) {
+            params.append(key, value);
+        }
+    }
+    
+    // Actualizar la URL sin recargar la página
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+}
+
+// Función para eliminar un filtro específico
+function removeFilter(filterName) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(filterName);
+    window.location.href = url.toString();
+}
+
+// Función para eliminar un filtro de fecha
+function removeDateFilter(filterName) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(filterName);
+    
+    // Si estamos eliminando 'fecha_desde' y 'fecha_hasta' está presente, asegurarse de que la búsqueda aún sea válida
+    if (filterName === 'fecha_desde' && url.searchParams.has('fecha_hasta')) {
+        const fechaHasta = new Date(url.searchParams.get('fecha_hasta'));
+        const fechaMinima = new Date();
+        fechaMinima.setFullYear(fechaMinima.getFullYear() - 5); // Últimos 5 años por defecto
+        
+        if (fechaHasta > fechaMinima) {
+            url.searchParams.set('fecha_desde', fechaMinima.toISOString().split('T')[0]);
+        }
+    }
+    
+    window.location.href = url.toString();
+}
+
+// Función para limpiar el formulario
+function limpiarFormulario() {
+    const form = document.getElementById('searchForm');
+    form.reset();
+    
+    // Limpiar parámetros de la URL
+    const url = new URL(window.location.href);
+    const cleanUrl = `${url.origin}${url.pathname}`;
+    window.history.pushState({ path: cleanUrl }, '', cleanUrl);
+    
+    // Restablecer fechas por defecto
+    setDefaultDate();
+    
+    // Enviar el formulario para mostrar resultados sin filtros
+    form.submit();
+}
+
+// Función para manejar la ordenación
+function handleSort(sortBy) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('ordenar_por', sortBy);
+    window.location.href = url.toString();
+}
+
+// Cuando el documento esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Inicializar popovers
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
+    
+    // Inicializar Select2 para los selectores múltiples
+    if (typeof $.fn.select2 !== 'undefined') {
+        $('.select2-tags').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Seleccionar opciones',
+            allowClear: true,
+            width: '100%',
+            closeOnSelect: false,
+            language: 'es'
+        }).on('change', function() {
+            // Actualizar la URL cuando cambia la selección
+            updateURLWithParams();
+        });
+    }
+    
+    // Establecer fechas por defecto
+    setDefaultDate();
+    
+    // Validar fechas al enviar el formulario
+    const searchForm = document.getElementById('searchForm');
+    if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+            const fechaDesde = document.getElementById('fecha_desde');
+            const fechaHasta = document.getElementById('fecha_hasta');
+            
+            if (fechaDesde && fechaHasta && fechaDesde.value && fechaHasta.value && fechaDesde.value > fechaHasta.value) {
+                e.preventDefault();
+                // Mostrar toast de error
+                const toastEl = document.getElementById('dateErrorToast');
+                const toast = new bootstrap.Toast(toastEl);
+                toast.show();
+                return false;
+            }
+            
+            // Mostrar indicador de carga
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Buscando...';
+            }
+        });
+    }
+    
+    // Manejar clic en los elementos de ordenación
+    document.querySelectorAll('.sort-option').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const sortBy = this.getAttribute('data-sort');
+            handleSort(sortBy);
+        });
+    });
+    
+    // Inicializar DataTable si es necesario
+    if (typeof $.fn.DataTable !== 'undefined' && document.getElementById('resultadosTable')) {
+        $('#resultadosTable').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json'
+            },
+            pageLength: 10,
+            order: [[3, 'desc']],
+            responsive: true,
+            dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+                 "<'row'<'col-sm-12'tr>>" +
+                 "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
+        });
+    }
+    
+    // Manejar el evento de clic en las tarjetas de resultados
+    document.querySelectorAll('.search-result-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            // No hacer nada si se hizo clic en un botón o enlace
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button, a')) {
+                return;
+            }
+            
+            const link = this.querySelector('a[href]');
+            if (link) {
+                window.location.href = link.href;
+            }
+        });
+    });
+    
+    // Inicializar tooltips dinámicamente (para contenido cargado después del DOM)
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                initializeTooltips();
+            }
+        });
+    });
+    
+    // Comenzar a observar el cuerpo del documento
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    // Función para inicializar tooltips
+    function initializeTooltips() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+});
+
+// Estilos adicionales para mejorar la interactividad
+const style = document.createElement('style');
+style.textContent = `
+    /* Efecto hover en tarjetas de resultados */
+    .search-result-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .search-result-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    /* Mejorar la accesibilidad del foco */
+    .search-result-card:focus-within {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+    }
+    
+    /* Estilo para los badges de etiquetas */
+    .tag-badge {
+        transition: background-color 0.2s ease;
+    }
+    
+    .tag-badge:hover {
+        background-color: var(--bs-primary) !important;
+        color: white !important;
+    }
+    
+    /* Ajustes para móviles */
+    @media (max-width: 767.98px) {
+        .search-card {
+            margin-top: 0;
+            border-radius: 0;
+        }
+        
+        .search-hero {
+            border-radius: 0;
+            padding: 2rem 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %} 

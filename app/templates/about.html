@@ -1,0 +1,132 @@
+{% extends "base_public.html" %}
+
+{% block title %}Acerca de - BigData Pro{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row justify-content-center text-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold mb-4 text-white">Sobre el Proyecto</h1>
+                <p class="lead mb-0 text-white">Conoce más sobre nuestra plataforma de análisis de datos</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center mb-5">
+            <div class="col-lg-10">
+                <div class="card shadow-sm">
+                    <div class="card-body p-5">
+                        <h2 class="section-title mb-4">BigData Pro</h2>
+                        <p class="lead text-muted mb-4">
+                            Plataforma avanzada para la gestión, análisis y visualización de grandes volúmenes de datos. 
+                            Desarrollada como parte del proyecto final de la Maestría en Analítica de Datos.
+                        </p>
+                        
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="h-100 p-4">
+                                    <h3 class="h4 mb-3">Características Principales</h3>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i> Búsqueda avanzada con filtros</li>
+                                        <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i> Visualización interactiva de datos</li>
+                                        <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i> Interfaz intuitiva y responsiva</li>
+                                        <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i> Soporte para múltiples fuentes de datos</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="h-100 p-4">
+                                    <h3 class="h4 mb-3">Tecnologías Utilizadas</h3>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <span class="badge bg-primary bg-opacity-10 text-primary p-2">Python</span>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary p-2">Flask</span>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary p-2">MongoDB</span>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary p-2">Elasticsearch</span>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary p-2">Bootstrap 5</span>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary p-2">JavaScript</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Team Section -->
+        <div class="text-center mb-5">
+            <h2 class="section-title">Desarrollador</h2>
+            <p class="lead text-muted">Conoce al equipo detrás de este proyecto</p>
+        </div>
+        
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-body text-center p-4">
+                        <img src="https://ui-avatars.com/api/?name=Cristhian+Rodriguez&background=1e3c72&color=fff&size=200" 
+                             alt="Cristhian Rodriguez" 
+                             class="rounded-circle img-thumbnail mb-3" 
+                             style="width: 150px; height: 150px; object-fit: cover;">
+                        <h3 class="h4 mb-1">Cristhian Rodriguez</h3>
+                        <p class="text-muted mb-3">Estudiante de Maestría en Analítica de Datos</p>
+                        <p class="mb-4">
+                            Proyecto desarrollado como parte del programa de Maestría en Analítica de Datos 
+                            de la Universidad Central.
+                        </p>
+                        <div class="d-flex justify-content-center gap-3">
+                            <a href="#" class="btn btn-outline-primary btn-sm rounded-circle" title="GitHub">
+                                <i class="bi bi-github"></i>
+                            </a>
+                            <a href="#" class="btn btn-outline-primary btn-sm rounded-circle" title="LinkedIn">
+                                <i class="bi bi-linkedin"></i>
+                            </a>
+                            <a href="#" class="btn btn-outline-primary btn-sm rounded-circle" title="Twitter">
+                                <i class="bi bi-twitter"></i>
+                            </a>
+                            <a href="mailto:contacto@ejemplo.com" class="btn btn-outline-primary btn-sm rounded-circle" title="Email">
+                                <i class="bi bi-envelope"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- University Section -->
+<section class="py-5 bg-light">
+    <div class="container text-center">
+        <h2 class="h3 mb-4">Universidad Central</h2>
+        <div class="d-flex justify-content-center mb-3">
+            <img src="https://www.ucentral.edu.co/sites/default/files/logo_1.png" 
+                 alt="Logo Universidad Central" 
+                 class="img-fluid" 
+                 style="max-width: 200px; height: auto;">
+        </div>
+        <p class="mb-0 text-muted">
+            Maestría en Analítica de Datos<br>
+            Institución de Educación Superior
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Scripts específicos de la página de acerca de
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+{% endblock %}

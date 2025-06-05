@@ -1,0 +1,44 @@
+{% extends "gestion/base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-database" style="font-size: 3rem; color: #4e73df;"></i>
+                <h5 class="card-title mt-3">MongoDB Manager</h5>
+                <p class="card-text">Administra tus bases de datos y colecciones de MongoDB</p>
+                <a href="{{ url_for('database.gestion_proyecto') }}" class="btn btn-primary">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Acceder
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-search" style="font-size: 3rem; color: #1cc88a;"></i>
+                <h5 class="card-title mt-3">Elasticsearch Manager</h5>
+                <p class="card-text">Gestiona tus índices y búsquedas en Elasticsearch</p>
+                <a href="{{ url_for('elastic.admin') }}" class="btn btn-success">
+                    <i class="bi bi-search me-2"></i>Acceder
+                </a>
+            </div>
+        </div>
+    </div>  
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Bienvenido al Panel de Gestión</h5>
+    </div>
+    <div class="card-body">
+        <p>Selecciona una de las opciones anteriores para comenzar a gestionar tus datos.</p>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Actualmente estás autenticado como: <strong>{{ session.usuario }}</strong>
+        </div>
+    </div>
+</div>
+{% endblock %}

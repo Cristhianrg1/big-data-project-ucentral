@@ -1,0 +1,860 @@
+{% extends "gestion/base.html" %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .data-viewer {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    .preformatted-json {
+        white-space: pre-wrap;
+        margin: 0;
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+    .nested-table {
+        width: 100%;
+        font-size: 0.9em;
+    }
+    .nested-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">
+            <i class="bi bi-collection me-2"></i>
+            {{ database }} <i class="bi bi-chevron-right mx-2"></i> {{ collection }}
+            <span class="badge bg-primary ms-2">{{ total }} documentos</span>
+        </h4>
+        <div>
+            <a href="{{ url_for('database.gestion_proyecto', database=database) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Volver
+            </a>
+            <div class="btn-group">
+                <a href="{{ url_for('database.importar_documentos', database=database, collection=collection) }}"
+                   class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-upload me-1"></i> Importar
+                </a>
+                <a href="{{ url_for('database.nuevo_documento', database=database, collection=collection) }}"
+                   class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-lg me-1"></i> Nuevo
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <!-- Filtros y búsqueda -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Buscar documentos...">
+                    <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                        Buscar
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="sortSelect">
+                    <option value="_id_asc">Ordenar por ID (A-Z)</option>
+                    <option value="_id_desc">Ordenar por ID (Z-A)</option>
+                    <option value="date_asc">Fecha (más antiguo primero)</option>
+                    <option value="date_desc">Fecha (más reciente primero)</option>
+                </select>
+            </div>
+            <div class="col-md-3 text-end">
+                <select class="form-select" id="perPageSelect">
+                    <option value="10" {% if request.args.get('per_page', '10') == '10' %}selected{% endif %}>10 por página</option>
+                    <option value="25" {% if request.args.get('per_page') == '25' %}selected{% endif %}>25 por página</option>
+                    <option value="50" {% if request.args.get('per_page') == '50' %}selected{% endif %}>50 por página</option>
+                    <option value="100" {% if request.args.get('per_page') == '100' %}selected{% endif %}>100 por página</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tabla de documentos -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        {% if documents and documents|length > 0 %}
+                            {# Obtener todas las claves excepto _id #}
+                            {% set doc = documents[0] %}
+                            {% set all_keys = [] %}
+                            
+                            {# Obtener todas las claves de todos los documentos #}
+                            {% for d in documents %}
+                                {% for key in d.keys() %}
+                                    {% if key != '_id' and key not in all_keys %}
+                                        {% set _ = all_keys.append(key) %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            
+                            {# Encontrar la clave con más contenido (lista o diccionario) #}
+                            {% set nested_key = none %}
+                            {% set max_length = 0 %}
+                            
+                            {% for key in all_keys %}
+                                {% if key in doc and doc[key] is defined %}
+                                    {% if doc[key] is iterable and doc[key] is not string %}
+                                        {% set current_length = doc[key]|length if doc[key] is iterable and doc[key] is not mapping else 1 %}
+                                        {% if current_length > max_length %}
+                                            {% set max_length = current_length %}
+                                            {% set nested_key = key %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {# Mostrar columnas para las claves que no son la anidada #}
+                            {% for key in all_keys %}
+                                {% if key != nested_key %}
+                                    <th>{{ key|title|replace('_', ' ') }}</th>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {# Mostrar columna para la clave anidada si existe #}
+                            {% if nested_key %}
+                                <th>{{ nested_key|title|replace('_', ' ') }}</th>
+                            {% endif %}
+                            
+                            <th class="text-end">Acciones</th>
+                        {% else %}
+                            <th>No hay documentos para mostrar</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody id="documentsTableBody">
+                    {% for doc in documents %}
+                        <tr data-doc-id="{{ doc._id }}">
+                            {# Mostrar valores para las claves que no son la anidada #}
+                            {% for key in all_keys %}
+                                {% if key != nested_key %}
+                                    <td>
+                                        {% if key in doc %}
+                                            {% if doc[key] is string %}
+                                                {{ doc[key]|truncate(50) }}
+                                            {% elif doc[key] is number %}
+                                                {{ "%.2f"|format(doc[key]|float) }}
+                                            {% elif doc[key] is mapping or doc[key] is iterable %}
+                                                <button class="btn btn-sm btn-outline-info view-nested" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#nestedContentModal"
+                                                        data-title="{{ key|title|replace('_', ' ') }}"
+                                                        data-content='{{ doc[key]|tojson }}'>
+                                                    <i class="bi bi-eye"></i> Ver
+                                                </button>
+                                            {% else %}
+                                                {{ doc[key]|tojson|truncate(50) }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {# Mostrar tabla anidada para la clave con más contenido #}
+                            {% if nested_key and nested_key in doc %}
+                                <td>
+                                    {% if doc[nested_key] is iterable and doc[nested_key] is not string %}
+                                        <div style="max-height: 200px; overflow-y: auto;">
+                                            {% if doc[nested_key] is mapping %}
+                                                {# Si es un diccionario, mostrarlo como tabla de una fila #}
+                                                <table class="table table-sm table-bordered">
+                                                    <tbody>
+                                                        <tr>
+                                                            {% for key, value in doc[nested_key].items() %}
+                                                                <th>{{ key|title }}</th>
+                                                            {% endfor %}
+                                                        </tr>
+                                                        <tr>
+                                                            {% for value in doc[nested_key].values() %}
+                                                                <td>
+                                                                    {% if value is string %}
+                                                                        {{ value|truncate(30) }}
+                                                                    {% elif value is number %}
+                                                                        {{ "%.2f"|format(value|float) }}
+                                                                    {% else %}
+                                                                        {{ value|tojson|truncate(30) }}
+                                                                    {% endif %}
+                                                                </td>
+                                                            {% endfor %}
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            {% else %}
+                                                {# Si es una lista, mostrarla como tabla con múltiples filas #}
+                                                <table class="table table-sm table-bordered">
+                                                    {% if doc[nested_key]|length > 0 %}
+                                                        <thead>
+                                                            <tr>
+                                                                {% if doc[nested_key][0] is mapping %}
+                                                                    {% for key in doc[nested_key][0].keys() %}
+                                                                        <th>{{ key|title }}</th>
+                                                                    {% endfor %}
+                                                                {% else %}
+                                                                    <th>Ítem</th>
+                                                                {% endif %}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for item in doc[nested_key] %}
+                                                                <tr>
+                                                                    {% if item is mapping %}
+                                                                        {% for value in item.values() %}
+                                                                            <td>
+                                                                                {% if value is string %}
+                                                                                    {{ value|truncate(30) }}
+                                                                                {% elif value is number %}
+                                                                                    {{ "%.2f"|format(value|float) }}
+                                                                                {% else %}
+                                                                                    {{ value|tojson|truncate(30) }}
+                                                                                {% endif %}
+                                                                            </td>
+                                                                        {% endfor %}
+                                                                    {% else %}
+                                                                        <td>
+                                                                            {% if item is string %}
+                                                                                {{ item|truncate(50) }}
+                                                                            {% elif item is number %}
+                                                                                {{ "%.2f"|format(item|float) }}
+                                                                            {% else %}
+                                                                                {{ item|tojson|truncate(50) }}
+                                                                            {% endif %}
+                                                                        </td>
+                                                                    {% endif %}
+                                                                </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    {% else %}
+                                                        <tr><td class="text-center text-muted">Vacío</td></tr>
+                                                    {% endif %}
+                                                </table>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        {{ doc[nested_key]|tojson|truncate(50) }}
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                            
+                            <td class="text-nowrap text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('database.editar_documento', database=database, collection=collection, document_id=doc._id) }}"
+                                       class="btn btn-outline-primary"
+                                       title="Editar documento">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button class="btn btn-outline-secondary view-document"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#documentModal"
+                                            data-doc='{{ doc|tojson }}'
+                                            title="Vista previa">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger delete-document"
+                                            data-doc-id="{{ doc._id }}"
+                                            data-db="{{ database }}"
+                                            data-collection="{{ collection }}"
+                                            data-doc='{{ doc|tojson }}'
+                                            title="Eliminar documento">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="100%" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                    No se encontraron documentos en esta colección.
+                                </div>
+                                <a href="{{ url_for('database.nuevo_documento', database=database, collection=collection) }}" class="btn btn-primary mt-2">
+                                    <i class="bi bi-plus-lg me-1"></i> Crear primer documento
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ page - 1 }}" {% if page == 1 %}tabindex="-1" aria-disabled="true"{% endif %}>
+                        Anterior
+                    </a>
+                </li>
+
+                {% for p in range(1, pages + 1) %}
+                    {% if p == 1 or p == pages or (p >= page - 2 and p <= page + 2) %}
+                        <li class="page-item {% if p == page %}active{% endif %}">
+                            <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+                        </li>
+                    {% elif loop.index == 2 or loop.index == loop.length - 1 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                <li class="page-item {% if page == pages %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ page + 1 }}" {% if page == pages %}tabindex="-1" aria-disabled="true"{% endif %}>
+                        Siguiente
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Nested Content Modal -->
+<div class="modal fade" id="nestedContentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">
+                    <i class="bi bi-table me-2"></i>
+                    <span id="modalTitle">Detalles del documento</span>
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" id="copyJsonBtn" title="Copiar JSON">
+                        <i class="bi bi-clipboard me-1"></i> Copiar JSON
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <div class="data-viewer">
+                    <div id="dataContent" class="p-3">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <!-- Los encabezados se generarán dinámicamente -->
+                                </thead>
+                                <tbody id="dataTableBody">
+                                    <!-- Los datos se insertarán aquí -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document View Modal -->
+<div class="modal fade" id="documentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i>Vista previa del documento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <pre id="documentContent" class="m-0 p-3" style="max-height: 70vh; overflow: auto;"></pre>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i> Cerrar
+                </button>
+                <button type="button" class="btn btn-primary" id="copyJson">
+                    <i class="bi bi-clipboard me-1"></i> Copiar JSON
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmar eliminación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.</p>
+                <p class="mb-2"><strong>ID del documento:</strong> <span id="documentIdToDelete" class="font-monospace"></span></p>
+                <div class="alert alert-warning p-2 mt-3 mb-0">
+                    <pre id="deleteDocumentPreview" class="mb-0 small" style="max-height: 150px; overflow: auto;"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">
+                    <i class="bi bi-trash me-1"></i> Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="toastContainer" class="toast-container">
+        <!-- Toasts will be added here dynamically -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Función para generar los encabezados de la tabla dinámicamente
+function generateTableHeaders(data) {
+    if (!data || typeof data !== 'object') return '';
+    
+    // Función recursiva para obtener todas las claves
+    const getAllKeys = (obj, prefix = '') => {
+        let keys = [];
+        Object.keys(obj).forEach(key => {
+            const fullKey = prefix ? `${prefix}.${key}` : key;
+            if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+                keys = [...keys, ...getAllKeys(obj[key], fullKey)];
+            } else {
+                keys.push(fullKey);
+            }
+        });
+        return keys;
+    };
+    
+    // Obtener todas las claves únicas
+    const allKeys = [...new Set(getAllKeys(data))];
+    
+    // Generar los encabezados
+    return allKeys.map(key => `<th class="text-nowrap">${key}</th>`).join('\n');
+}
+
+// Función para generar las filas de la tabla
+function generateTableRows(data) {
+    if (!data || typeof data !== 'object') return '';
+    
+    // Función para obtener un valor anidado usando notación de puntos
+    const getNestedValue = (obj, path) => {
+        return path.split('.').reduce((o, p) => (o && o[p] !== undefined) ? o[p] : null, obj);
+    };
+    
+    // Obtener todas las claves
+    const allKeys = [...new Set(getAllKeys(data))];
+    
+    // Función recursiva para obtener todas las claves
+    function getAllKeys(obj, prefix = '') {
+        let keys = [];
+        Object.keys(obj).forEach(key => {
+            const fullKey = prefix ? `${prefix}.${key}` : key;
+            if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+                keys = [...keys, ...getAllKeys(obj[key], fullKey)];
+            } else {
+                keys.push(fullKey);
+            }
+        });
+        return keys;
+    }
+    
+    // Generar las celdas para cada valor
+    let cells = '';
+    allKeys.forEach(key => {
+        let value = getNestedValue(data, key);
+        let displayValue = value;
+        
+        if (value === null || value === undefined) {
+            displayValue = '<span class="text-muted">null</span>';
+        } else if (typeof value === 'boolean') {
+            displayValue = value ? 'true' : 'false';
+        } else if (Array.isArray(value)) {
+            displayValue = `<span class="text-muted">[${value.length} items]</span>`;
+        } else if (typeof value === 'object') {
+            displayValue = '<span class="text-muted">{...}</span>';
+        } else if (typeof value === 'string') {
+            // Acortar cadenas largas
+            if (value.length > 50) {
+                displayValue = `"${value.substring(0, 50)}..."`;
+            } else {
+                displayValue = `"${value}"`;
+            }
+        }
+        
+        cells += `<td>${displayValue}</td>`;
+    });
+    
+    return cells;
+}
+
+// Inicializar el modal para mostrar contenido anidado
+const nestedContentModal = document.getElementById('nestedContentModal');
+if (nestedContentModal) {
+    nestedContentModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const title = button.getAttribute('data-title') || 'Detalles';
+        let content;
+        
+        try {
+            content = JSON.parse(button.getAttribute('data-content'));
+        } catch (e) {
+            content = button.getAttribute('data-content');
+        }
+        
+        const modalTitle = document.getElementById('modalTitle');
+        const dataTable = document.querySelector('#nestedContentModal .table');
+        const dataTableHead = dataTable.querySelector('thead');
+        const dataTableBody = dataTable.querySelector('tbody');
+        
+        // Establecer el título del modal
+        modalTitle.textContent = title;
+        
+        // Limpiar la tabla
+        dataTableHead.innerHTML = '';
+        dataTableBody.innerHTML = '';
+        
+        // Renderizar el contenido
+        if (content && typeof content === 'object') {
+            // Asegurarse de que content sea un array
+            const dataArray = Array.isArray(content) ? content : [content];
+            
+            // Generar encabezados basados en todas las claves posibles
+            const allKeys = [];
+            dataArray.forEach(item => {
+                const keys = [];
+                const getKeys = (obj, prefix = '') => {
+                    Object.keys(obj).forEach(key => {
+                        const fullKey = prefix ? `${prefix}.${key}` : key;
+                        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+                            getKeys(obj[key], fullKey);
+                        } else {
+                            keys.push(fullKey);
+                        }
+                    });
+                    return keys;
+                };
+                allKeys.push(...getKeys(item));
+            });
+            
+            const uniqueKeys = [...new Set(allKeys)];
+            
+            // Generar encabezados
+            const headers = uniqueKeys.map(key => `<th class="text-nowrap">${key}</th>`).join('');
+            dataTableHead.innerHTML = `<tr>${headers}</tr>`;
+            
+            // Generar filas
+            dataArray.forEach(item => {
+                const row = document.createElement('tr');
+                
+                uniqueKeys.forEach(key => {
+                    const cell = document.createElement('td');
+                    const value = key.split('.').reduce((o, k) => (o && o[k] !== undefined) ? o[k] : null, item);
+                    
+                    if (value === null || value === undefined) {
+                        cell.innerHTML = '<span class="text-muted">null</span>';
+                    } else if (typeof value === 'boolean') {
+                        cell.textContent = value ? 'true' : 'false';
+                    } else if (Array.isArray(value)) {
+                        cell.innerHTML = `<span class="text-muted">[${value.length} items]</span>`;
+                    } else if (typeof value === 'object') {
+                        cell.innerHTML = '<span class="text-muted">{...}</span>';
+                    } else if (typeof value === 'string') {
+                        // Acortar cadenas largas
+                        if (value.length > 50) {
+                            cell.textContent = `"${value.substring(0, 50)}..."`;
+                        } else {
+                            cell.textContent = `"${value}"`;
+                        }
+                    } else {
+                        cell.textContent = value;
+                    }
+                    
+                    row.appendChild(cell);
+                });
+                
+                dataTableBody.appendChild(row);
+            });
+        } else {
+            dataTableBody.innerHTML = `
+                <tr>
+                    <td colspan="${Math.max(1, Object.keys(content || {}).length)}" class="text-center py-4 text-muted">
+                        No hay datos para mostrar
+                    </td>
+                </tr>
+            `;
+        }
+        
+        // Configurar botón de copiar
+        const copyBtn = document.getElementById('copyJsonBtn');
+        copyBtn.onclick = function() {
+            const textToCopy = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+            navigator.clipboard.writeText(textToCopy);
+            
+            const originalHtml = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<i class="bi bi-check2 me-1"></i> ¡Copiado!';
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = originalHtml;
+            }, 2000);
+        };
+    });
+}
+
+// Inicializar tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle document preview
+    document.querySelectorAll('.toggle-document').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const docId = this.getAttribute('data-doc-id');
+            const preview = this.closest('tr').querySelector('.document-preview');
+
+            if (this.classList.contains('expanded')) {
+                preview.style.maxHeight = '80px';
+                this.innerHTML = '<i class="bi bi-arrows-expand"></i> Mostrar todo';
+                this.classList.remove('expanded');
+            } else {
+                preview.style.maxHeight = 'none';
+                this.innerHTML = '<i class="bi bi-dash-lg"></i> Mostrar menos';
+                this.classList.add('expanded');
+            }
+        });
+    });
+
+    // Handle document view modal
+    const documentModal = document.getElementById('documentModal');
+    if (documentModal) {
+        documentModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const docData = JSON.parse(button.getAttribute('data-doc'));
+            const modalContent = document.getElementById('documentContent');
+
+            // Format and display the JSON with syntax highlighting
+            modalContent.textContent = JSON.stringify(docData, null, 2);
+
+            // Update the copy button
+            document.getElementById('copyJson').onclick = function() {
+                navigator.clipboard.writeText(JSON.stringify(docData, null, 2))
+                    .then(() => {
+                        showToast('¡JSON copiado al portapapeles!', 'success');
+                    })
+                    .catch(err => {
+                        console.error('Error al copiar: ', err);
+                        showToast('Error al copiar el documento', 'danger');
+                    });
+            };
+        });
+    }
+
+    // Handle delete confirmation
+    const deleteModal = document.getElementById('deleteConfirmModal');
+    let docToDelete = null;
+
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            docToDelete = {
+                id: button.getAttribute('data-doc-id'),
+                db: button.getAttribute('data-db'),
+                collection: button.getAttribute('data-collection'),
+                data: button.getAttribute('data-doc')
+            };
+
+            document.getElementById('documentIdToDelete').textContent = docToDelete.id;
+
+            // Mostrar vista previa del documento
+            try {
+                const docData = JSON.parse(docToDelete.data || '{}');
+                const preview = document.getElementById('deleteDocumentPreview');
+                preview.textContent = JSON.stringify(docData, null, 2);
+            } catch (e) {
+                console.error('Error al parsear documento:', e);
+            }
+        });
+
+        document.getElementById('confirmDelete').addEventListener('click', function() {
+            if (!docToDelete) return;
+
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Eliminando...';
+
+            // Enviar solicitud de eliminación
+            fetch(`{{ url_for('database.eliminar_documento', database='__DB__', collection='__COLLECTION__', document_id='__DOC_ID__') }}`
+                .replace('__DB__', docToDelete.db)
+                .replace('__COLLECTION__', docToDelete.collection)
+                .replace('__DOC_ID__', docToDelete.id), {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Eliminar la fila de la tabla
+                    const row = document.querySelector(`tr[data-doc-id="${docToDelete.id}"]`);
+                    if (row) row.remove();
+
+                    // Mostrar mensaje de éxito
+                    showToast('¡Documento eliminado correctamente!', 'success');
+
+                    // Recargar la página si no quedan documentos
+                    const remainingDocs = document.querySelectorAll('#documentsTableBody tr').length;
+                    if (remainingDocs <= 1) { // 1 por la fila de "no hay documentos"
+                        setTimeout(() => window.location.reload(), 1500);
+                    }
+
+                    // Show success message
+                    showToast('¡Documento eliminado correctamente!', 'success');
+                } else {
+                    throw new Error(data.error || 'Error al eliminar el documento');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast(error.message || 'Error al eliminar el documento', 'danger');
+            })
+            .finally(() => {
+                // Close the modal
+                const modal = bootstrap.Modal.getInstance(deleteModal);
+                if (modal) modal.hide();
+
+                // Reset button
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+        });
+
+        // Initialize delete buttons
+        document.querySelectorAll('.delete-document').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const modal = new bootstrap.Modal(deleteModal);
+                modal.show();
+            });
+        });
+    }
+
+    // Initialize search functionality
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+
+    if (searchInput && searchButton) {
+        const performSearch = () => {
+            const searchTerm = searchInput.value.trim();
+            if (searchTerm) {
+                const url = new URL(window.location);
+                url.searchParams.set('q', searchTerm);
+                window.location.href = url.toString();
+            }
+        };
+
+        searchButton.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+    }
+
+    // Helper function to show toast messages
+    function showToast(message, type = 'info') {
+        const toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) return;
+
+        const toastId = 'toast-' + Date.now();
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.id = toastId;
+
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+
+        toastContainer.appendChild(toast);
+
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 5000
+        });
+
+        bsToast.show();
+
+        // Remove the toast from DOM after it's hidden
+        toast.addEventListener('hidden.bs.toast', function() {
+            toast.remove();
+        });
+    }
+
+    // Initialize sort and per page selectors
+    const sortSelect = document.getElementById('sortSelect');
+    const perPageSelect = document.getElementById('perPageSelect');
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', updateUrlWithParams);
+    }
+
+    if (perPageSelect) {
+        perPageSelect.addEventListener('change', updateUrlWithParams);
+    }
+
+    function updateUrlWithParams() {
+        const params = new URLSearchParams(window.location.search);
+
+        if (sortSelect && sortSelect.value) {
+            params.set('sort', sortSelect.value);
+        }
+
+        if (perPageSelect && perPageSelect.value) {
+            params.set('per_page', perPageSelect.value);
+            params.set('page', '1'); // Reset to first page when changing items per page
+        }
+
+        window.location.search = params.toString();
+    }
+
+    // Set current sort and per page values from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSort = urlParams.get('sort');
+    const currentPerPage = urlParams.get('per_page');
+
+    if (currentSort && sortSelect) {
+        sortSelect.value = currentSort;
+    }
+
+    if (currentPerPage && perPageSelect) {
+        perPageSelect.value = currentPerPage;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "elastic/base.html" %}
+
+{% block title %}{{ documento.titulo|default('Documento sin título') }} - Elasticsearch - BigData-MiProyecto{% endblock %}
+
+{% block elastic_content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        {% if documento.titulo %}
+            {{ documento.titulo }}
+            <small class="text-muted d-block mt-1">ID: {{ doc_id }}</small>
+        {% else %}
+            Documento #{{ doc_id }}
+        {% endif %}
+    </h1>
+    <a href="{{ url_for('elastic.listar_documentos') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al listado
+    </a>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            Documento en el índice "{{ index_name }}"
+        </h6>
+        <div>
+            <a href="#" class="btn btn-danger" 
+               onclick="return confirm('¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.')">
+                <i class="fas fa-trash-alt me-2"></i>Eliminar
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <tbody>
+                    {% for key, value in documento.items() %}
+                    <tr>
+                        <th class="text-nowrap" style="width: 20%;">{{ key }}</th>
+                        <td>
+                            {% if value is mapping %}
+                                <pre class="mb-0"><code>{{ value | tojson(indent=2) }}</code></pre>
+                            {% elif value is iterable and value is not string %}
+                                <pre class="mb-0"><code>{{ value | tojson(indent=2) }}</code></pre>
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Función para confirmar eliminación
+function confirmarEliminacion() {
+    if (confirm('¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.')) {
+        fetch('{{ url_for("elastic.eliminar_documento", doc_id=doc_id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '{{ url_for("elastic.listar_documentos") }}';
+            } else {
+                alert('Error al eliminar el documento: ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al eliminar el documento');
+        });
+    }
+    return false;
+}
+
+// Asignar la función al botón de eliminar
+document.addEventListener('DOMContentLoaded', function() {
+    const btnEliminar = document.querySelector('.btn-danger');
+    if (btnEliminar) {
+        btnEliminar.addEventListener('click', function(e) {
+            e.preventDefault();
+            confirmarEliminacion();
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -6,6 +6,10 @@ build/
 dist/
 node_modules/
 venv/
+.venv/
 .env
 .python-version
 app.log
+*.zip
+*.json
+.DS_Store

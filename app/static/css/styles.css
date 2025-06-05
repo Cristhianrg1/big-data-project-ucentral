@@ -1,0 +1,243 @@
+/* Estilos generales */
+:root {
+    --primary-color: #4361ee;
+    --primary-hover: #3a56d4;
+    --secondary-color: #3f37c9;
+    --success-color: #4bb543;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --gray-100: #f8f9fa;
+    --gray-200: #e9ecef;
+    --gray-300: #dee2e6;
+    --gray-400: #ced4da;
+    --gray-500: #adb5bd;
+    --gray-600: #6c757d;
+    --gray-700: #495057;
+    --gray-800: #343a40;
+    --gray-900: #212529;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Aplicar fuente personalizada */
+body {
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    color: var(--gray-800);
+    background-color: var(--bs-body-bg);
+}
+
+/* Encabezados */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    color: var(--bs-heading-color, var(--gray-900));
+}
+
+/* Enlaces */
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease-in-out;
+}
+
+a:hover {
+    color: var(--primary-hover);
+}
+
+/* Botones */
+.btn {
+    font-weight: 500;
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+/* Tarjetas */
+.card {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    margin-bottom: 1.5rem;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: var(--bs-primary);
+    color: white;
+    border-bottom: none;
+    padding: 1rem 1.25rem;
+}
+
+/* Barra de navegación */
+.navbar {
+    padding: 0.75rem 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.nav-link {
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    margin: 0 0.25rem;
+}
+
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.active {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Formularios */
+.form-control, .form-select {
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--gray-300);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25);
+}
+
+/* Alertas */
+.alert {
+    border-radius: 0.375rem;
+    border: none;
+    padding: 1rem 1.25rem;
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+    border-radius: 0.25rem;
+}
+
+/* Footer */
+footer {
+    background-color: var(--gray-900);
+    color: var(--gray-300);
+    padding: 3rem 0;
+}
+
+footer a {
+    color: var(--gray-400);
+    text-decoration: none;
+    transition: color 0.2s ease-in-out;
+}
+
+footer a:hover {
+    color: white;
+    text-decoration: none;
+}
+
+/* Estilos específicos para el buscador */
+.search-card {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.search-result {
+    border-left: 3px solid var(--primary-color);
+    transition: all 0.2s ease-in-out;
+}
+
+.search-result:hover {
+    border-left-color: var(--primary-hover);
+    transform: translateX(4px);
+}
+
+.highlight {
+    background-color: rgba(255, 235, 59, 0.3);
+    padding: 0.1em 0.2em;
+    border-radius: 0.2em;
+}
+
+/* Tema oscuro */
+[data-bs-theme="dark"] {
+    --bs-body-bg: #1a1a2e;
+    --bs-body-color: #e9ecef;
+    --bs-border-color: #2a2a3c;
+    --bs-heading-color: #ffffff;
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: #16213e;
+    border: 1px solid #2a2a3c;
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: #1a1a2e;
+    border-color: #2a2a3c;
+    color: #e9ecef;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: #1a1a2e;
+    color: #e9ecef;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .navbar-collapse {
+        padding: 1rem 0;
+    }
+    
+    .nav-link {
+        margin: 0.25rem 0;
+        padding: 0.5rem 0;
+    }
+    
+    .search-card {
+        padding: 1rem;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Estilos para el botón de tema */
+#themeToggle {
+    z-index: 1050;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

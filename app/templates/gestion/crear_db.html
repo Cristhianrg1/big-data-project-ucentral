@@ -1,0 +1,22 @@
+{% extends "gestion/base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Crear Nueva Base de Datos</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('database.crear_base_datos') }}">
+            <div class="mb-3">
+                <label for="nombre_db" class="form-label">Nombre de la Base de Datos</label>
+                <input type="text" class="form-control" id="nombre_db" name="nombre_db" required>
+                <div class="form-text">Usa solo letras minúsculas, números y guiones bajos.</div>
+            </div>
+            <button type="submit" class="btn btn-primary">Crear</button>
+            <a href="{{ url_for('database.gestion_proyecto') }}" class="btn btn-secondary">
+                <i class="bi bi-x-circle me-1"></i> Cancelar
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}
