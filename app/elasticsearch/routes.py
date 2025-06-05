@@ -269,42 +269,39 @@ def listar_documentos():
 @elastic_bp.route('/documento/<doc_id>')
 @login_required
 def ver_documento(doc_id):
-    """Obtener un documento específico por su ID"""
+    """Mostrar un documento específico por su ID en una página dedicada"""
     es = get_elasticsearch_client()
     if not es:
-        return jsonify({'success': False, 'error': 'No se pudo conectar a Elasticsearch'}), 503
+        flash('No se pudo conectar a Elasticsearch', 'error')
+        return redirect(url_for('elastic.admin'))
     
     try:
         index_name = get_index_name()
         
         # Verificar si el índice existe
         if not es.indices.exists(index=index_name):
-            return jsonify({
-                'success': False, 
-                'error': f'El índice {index_name} no existe'
-            }), 404
+            flash(f'El índice {index_name} no existe', 'error')
+            return redirect(url_for('elastic.admin'))
         
         # Obtener el documento
         try:
             doc = es.get(index=index_name, id=doc_id)
-            return jsonify({
-                'success': True,
-                'document': doc['_source']
-            })
+            return render_template('elastic/ver_documento.html',
+                               documento=doc['_source'],
+                               doc_id=doc_id,
+                               index_name=index_name)
         except Exception as e:
             if getattr(e, 'status_code', 500) == 404:
-                return jsonify({
-                    'success': False, 
-                    'error': 'Documento no encontrado'
-                }), 404
-            raise
+                flash('Documento no encontrado', 'error')
+            else:
+                logger.error(f'Error al obtener documento {doc_id}: {str(e)}')
+                flash('Error al cargar el documento', 'error')
+            return redirect(url_for('elastic.listar_documentos'))
             
     except Exception as e:
-        logger.error(f'Error al obtener documento {doc_id}: {str(e)}')
-        return jsonify({
-            'success': False, 
-            'error': f'Error al obtener el documento: {str(e)}'
-        }), 500
+        logger.error(f'Error en ver_documento: {str(e)}')
+        flash('Ocurrió un error al cargar el documento', 'error')
+        return redirect(url_for('elastic.listar_documentos'))
 
 @elastic_bp.route('/eliminar-documento/<doc_id>', methods=['POST'])
 @login_required

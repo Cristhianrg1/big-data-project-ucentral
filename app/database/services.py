@@ -11,8 +11,8 @@ def get_databases():
         return []
     
     try:
-        # Obtener lista de bases de datos y filtrar las del sistema
-        system_dbs = ['admin', 'local', 'config']
+        # Obtener lista de bases de datos y filtrar las del sistema y administración
+        system_dbs = ['admin', 'local', 'config', 'administracion']
         databases = [db for db in client.list_database_names() if db not in system_dbs]
         return databases
     except Exception as e:
