@@ -50,13 +50,57 @@
                 </div>
             </div>
             
-            <!-- Contenido del documento -->
-            <div class="document-content">
-                {% if documento.contenido is string %}
-                    {{ documento.contenido|replace('\n', '<br>')|safe }}
-                {% else %}
-                    <pre>{{ documento.contenido|tojson(indent=2) }}</pre>
+            <!-- Contenido principal del documento -->
+            <div class="document-content mb-4">
+                <h4>Contenido</h4>
+                {% if documento.texto is defined and documento.texto %}
+                    <div class="p-3 bg-light rounded">
+                        {{ documento.texto|replace('\n', '<br>')|safe }}
+                    </div>
+                {% elif documento.contenido is defined and documento.contenido %}
+                    <div class="p-3 bg-light rounded">
+                        {% if documento.contenido is string %}
+                            {{ documento.contenido|replace('\n', '<br>')|safe }}
+                        {% else %}
+                            <pre>{{ documento.contenido|tojson(indent=2) if documento.contenido is not undefined else '' }}</pre>
+                        {% endif %}
+                    </div>
+                {% elif documento.body is defined and documento.body %}
+                    <div class="p-3 bg-light rounded">
+                        {{ documento.body|replace('\n', '<br>')|safe }}
+                    </div>
                 {% endif %}
+            </div>
+
+            <!-- Metadatos del documento -->
+            <div class="document-metadata">
+                <h4>Metadatos</h4>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            {% for key, value in documento.items() %}
+                                {% if key not in ['texto', 'contenido', 'body', 'titulo', 'autor', 'fecha_publicacion', 'etiquetas', 'metadatos'] %}
+                                    <div class="col-md-6 mb-2">
+                                        <strong>{{ key|replace('_', ' ')|title }}:</strong>
+                                        <span class="ms-1">
+                                            {% if value is string %}
+                                                {{ value }}
+                                            {% elif value is number %}
+                                                {{ value }}
+                                            {% elif value is mapping %}
+                                                <pre class="mb-0">{{ value|tojson(indent=2) }}</pre>
+                                            {% elif value is iterable %}
+                                                {{ value|join(', ') }}
+                                            {% else %}
+                                                {{ value|string }}
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Metadatos adicionales -->
