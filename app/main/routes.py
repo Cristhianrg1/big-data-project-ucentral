@@ -1,3 +1,4 @@
+import json
 from flask import render_template, current_app, request, flash, redirect, url_for, jsonify, session
 from app.extensions import get_mongo_client, requires_elasticsearch
 from bson import ObjectId
@@ -189,22 +190,45 @@ def ver_documento(document_id, es_client=None):
     Muestra un documento completo por su ID
     """
     try:
+        current_app.logger.info(f'Intentando obtener documento con ID: {document_id}')
+        
+        # Verificar que el cliente de Elasticsearch esté disponible
+        if es_client is None:
+            current_app.logger.error('El cliente de Elasticsearch no está disponible')
+            flash('El servicio de búsqueda no está disponible en este momento.', 'error')
+            return redirect(url_for('main.buscador'))
+            
         # Obtener el documento de Elasticsearch
-        resultado = es_client.get(
-            index=current_app.config['ELASTICSEARCH_INDEX'],
-            id=document_id
-        )
-        
-        # Obtener la última búsqueda de la sesión
-        last_search = session.get('last_search', {})
-        
-        return render_template('ver_documento.html',
-                           creador=current_app.config.get('CREATOR_APP', 'XYZ'),
-                           version=current_app.config.get('VERSION_APP', '1.0.0'),
-                           documento=resultado['_source'],
-                           doc_id=document_id,
-                           last_search=last_search)
+        try:
+            index_name = current_app.config.get('ELASTICSEARCH_INDEX', 'documentos')
+            current_app.logger.info(f'Buscando en índice: {index_name}')
+            
+            resultado = es_client.get(
+                index=index_name,
+                id=document_id
+            )
+            
+            current_app.logger.info('Documento encontrado en Elasticsearch')
+            
+            # Registrar la estructura del documento para depuración
+            current_app.logger.info(f'Estructura del documento: {json.dumps(resultado["_source"], default=str, indent=2)}')
+            
+            # Obtener la última búsqueda de la sesión
+            last_search = session.get('last_search', {})
+            
+            return render_template('ver_documento.html',
+                               creador=current_app.config.get('CREATOR_APP', 'XYZ'),
+                               version=current_app.config.get('VERSION_APP', '1.0.0'),
+                               documento=resultado['_source'],
+                               doc_id=document_id,
+                               last_search=last_search)
+                               
+        except Exception as e:
+            current_app.logger.error(f'Error al obtener documento de Elasticsearch: {str(e)}', exc_info=True)
+            flash('No se pudo cargar el documento solicitado. El documento puede no existir o hay un problema con el servidor de búsqueda.', 'error')
+            return redirect(url_for('main.buscador'))
+            
     except Exception as e:
-        current_app.logger.error(f'Error al obtener el documento: {str(e)}')
-        flash('No se pudo cargar el documento solicitado.', 'error')
+        current_app.logger.error(f'Error inesperado en ver_documento: {str(e)}', exc_info=True)
+        flash('Ocurrió un error inesperado al procesar su solicitud.', 'error')
         return redirect(url_for('main.buscador'))
