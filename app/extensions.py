@@ -3,7 +3,7 @@ from pymongo.server_api import ServerApi
 from elasticsearch import Elasticsearch
 import logging
 from functools import wraps
-from flask import current_app, jsonify, render_template
+from flask import current_app, jsonify, render_template, request
 
 # Configurar logging
 logging.basicConfig(
